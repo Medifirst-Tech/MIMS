@@ -1,43 +1,36 @@
-# MIMS
-Intelligent  management system for SMEs
-# Medifirst CMS
-**Clinic Management System**
-Version: 1.0 | Status: Phase 1 Complete | Last updated: April 2026
+# Medifirst MIMS
+**Medifirst Intelligent Management System**
+Version: 1.0 | Status: Active | Last updated: April 2026
 
 ## What This Is
-Single-file HTML/CSS/JS clinic management system for Malaysian GP clinics.
-Handles: patients, consultation, prescription, billing, inventory, 
-documents, lab results, appointments.
+Single-file HTML/CSS/JS staff and business management system.
+Handles: staff management, HR, projects, OKR, roster, 
+finance, chat, marketing, reports.
 
 ## File
-- `cms.html` — the entire application (single file, no build step)
+- `index.html` — the entire application (single file, no build step)
 
 ## Deploy
-1. Download `cms.html`
+1. Download `index.html`
 2. Drag and drop to Netlify
-3. Done — live in 30 seconds
+3. Must be same domain as CMS for sync to work
 
 ## Syncs With
-- MIMS (medifirst-mims repo) via BroadcastChannel + localStorage
-- Both apps must be hosted on the same Netlify domain
-
-## API Keys Required
-- Anthropic API (Claude) — via Netlify proxy at /api/claude
-- Set in Netlify environment variables
+- CMS (medifirst-cms repo) via BroadcastChannel + localStorage
 
 ## Current Build Status
 | Module | Status |
 |---|---|
-| Patient Management | ✅ Complete |
-| Prescription + Drug Safety | ✅ Complete |
-| Billing + Invoice | ✅ Complete |
-| Inventory | ✅ Complete |
-| Lab Results | ✅ Complete |
-| Documents (8 types) | ✅ Complete |
-| Appointments | ✅ Complete |
-| Finance Module | 🔄 In Progress |
-| Reports | ⬜ Planned |
-| Marketing | ⬜ Planned |
+| Staff Management | ✅ Complete |
+| My Dashboard | ✅ Complete |
+| Projects + OKR | ✅ Complete |
+| HR + Leave | ✅ Complete |
+| Roster (basic) | ✅ Complete |
+| Finance Centre | ✅ Complete |
+| Staff Chat + AI Coach | ✅ Complete |
+| Marketing Module | 🔄 Partial |
+| Payroll | ⬜ Planned |
+| AI Roster Generator | ⬜ Planned |
 
 ## Maintainer
 Dr. Rizuan — founder@medifirst.my
