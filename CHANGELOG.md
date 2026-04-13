@@ -9,3 +9,11 @@
 ---
 ## [v1.0.0] — 2026-04-01
 - Initial MIMS release
+
+---
+## [v1.2.0] — 2026-04-14
+### Changed
+- Role-based nav: CEO Dashboard restricted to CEO only
+- Staff Management restricted to CEO + Manager
+- All other pages open to staff for testing phase
+- navTo() page guard prevents direct URL bypass
