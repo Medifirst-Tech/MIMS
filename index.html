@@ -4667,17 +4667,27 @@ function hasStaffMgmt() {
 
 function buildNavItems() {
   if (!currentUser) return [];
-  const isCeo = isAdmin();
+  const isCeo     = isAdmin();
+  const isMgr     = isManager();
+  const isStaff   = !isCeo && !isMgr;
   const items = [
     { section:'Main' },
-    { id:'general',   label:'General Dashboard', icon:'home' },
   ];
+
+  // General Dashboard — all users (testing phase)
+  items.push({ id:'general', label:'General Dashboard', icon:'home' });
+
+  // CEO Dashboard — CEO only
   if (isCeo) items.push({ id:'ceo-dash', label:'CEO Dashboard', icon:'crown' });
+
+  // My Dashboard — everyone
   items.push({ id:'exec-dash', label:'My Dashboard', icon:'user',
     badge: (getMyTaskUrgentCount()||0)+(getMyPendingLeaveCount()||0) || null,
     badgeColor:'red' });
-  // Staff Management — visible to CEO/managers
-  items.push({ id:'users', label:'Staff Management', icon:'users' });
+
+  // Staff Management — CEO and managers only
+  if (isCeo || isMgr) items.push({ id:'users', label:'Staff Management', icon:'users' });
+
   // DEPARTMENTS section — role-based visibility
   const deptModuleMap = {
     'HR':         { id:'hr-module',       label:'HR',           icon:'users'     },
@@ -4695,24 +4705,25 @@ function buildNavItems() {
   } else if (deptModuleMap[myDeptForNav]) {
     items.push({ section:'Departments' });
     items.push(deptModuleMap[myDeptForNav]);
-  } else {
-    items.push({ section:'Departments' });
-    items.push({ id:'staff-dash', label:'My Workspace', icon:'user' });
   }
 
-  // STRATEGY section — visible to all exec/manager level
-  const isStrategyVisible = !!currentUser;
-  if (isStrategyVisible) {
-    items.push({ section:'Strategy' });
-    items.push({ id:'orgchart', label:'Organisation Chart', icon:'orgchart' });
-  }
+  // STRATEGY section — all users
+  items.push({ section:'Strategy' });
+  items.push({ id:'orgchart', label:'Organisation Chart', icon:'orgchart' });
 
   items.push({ section:'Tools' });
-  // Financial Hub + Finance Centre merged into Finance Module (Finance Department)
-  // No separate sidebar items needed — access controlled via Finance Module tabs
+
+  // Testing phase — all staff can access these to test features
   items.push({ id:'workflow', label:'Workflow Engine', icon:'flow' });
   items.push({ id:'mobile-preview', label:'Mobile App Preview', icon:'smartphone' });
-  items.push({ id:'attendance',    label:'Attendance',       icon:'fingerprint', badge: _todayAttendance.checkedIn ? '🟢' : null, badgeColor:'yellow' });
+
+  // Attendance — everyone
+  items.push({ id:'attendance', label:'Attendance', icon:'fingerprint',
+    badge: _todayAttendance.checkedIn ? '🟢' : null, badgeColor:'yellow' });
+
+  // Database — all (testing phase)
+  items.push({ id:'database', label:'Database', icon:'database' });
+
   items.push({ section:'System' });
   items.push({ id:'whats-new', label:"What's New", icon:'sparkle', badge: 'v2.0', badgeColor:'blue' });
   return items;
@@ -4755,6 +4766,22 @@ function buildNav() {
 }
 
 function navTo(pageId) {
+  // ── Page-level access guard ──────────────────────────────────────────
+  const _isCeo = isAdmin();
+  const _isMgr = isManager();
+  // During testing phase — only hard-restrict truly sensitive pages
+  const _ceoOnly  = new Set(['ceo-dash']);
+  const _mgrUp    = new Set(['users']);
+  if (_ceoOnly.has(pageId) && !_isCeo) {
+    showToast('⛔ Access restricted — CEO only', 'warn', 3000);
+    navTo('exec-dash');
+    return;
+  }
+  if (_mgrUp.has(pageId) && !_isCeo && !_isMgr) {
+    showToast('⛔ Access restricted — managers and above only', 'warn', 3000);
+    navTo('exec-dash');
+    return;
+  }
   document.querySelectorAll('.page').forEach(p => { p.classList.remove('active'); p.style.display = ''; });
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const page = document.getElementById('page-' + pageId);
