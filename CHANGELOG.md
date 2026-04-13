@@ -1,5 +1,19 @@
 # Changelog — Medifirst MIMS
 
+## [v1.2.1] — 2026-04-14
+### Fixed
+- Wrong Claude model name causing all AI features to fail
+- Updated 13 calls from claude-sonnet-4-20250514 → claude-sonnet-4-5-20251001
+
+---
+## [v1.2.0] — 2026-04-14
+### Changed
+- Role-based nav: CEO Dashboard restricted to CEO only
+- Staff Management restricted to CEO + Manager
+- All other pages open to staff for testing phase
+- navTo() page guard prevents direct URL bypass
+
+---
 ## [v1.1.0] — 2026-04-14
 ### Security
 - Removed hardcoded ANTHROPIC_API_KEY from HTML source
@@ -9,11 +23,3 @@
 ---
 ## [v1.0.0] — 2026-04-01
 - Initial MIMS release
-
----
-## [v1.2.0] — 2026-04-14
-### Changed
-- Role-based nav: CEO Dashboard restricted to CEO only
-- Staff Management restricted to CEO + Manager
-- All other pages open to staff for testing phase
-- navTo() page guard prevents direct URL bypass
