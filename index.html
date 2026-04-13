@@ -4966,7 +4966,7 @@ Rules:
 - Return ONLY the JSON array, nothing else`;
 
     const data = await _claudeFetch({
-        model: 'claude-sonnet-4-5-20251001',
+        model: 'claude-sonnet-4-5',
         max_tokens: 1500,
         system: 'You extract structured workflow steps from SOP documents. You return ONLY valid JSON arrays, no markdown, no explanation.',
         messages: [{ role: 'user', content: prompt }]
@@ -6588,7 +6588,7 @@ async function callWfAiNodee(node, wf) {
   }
 
   const data = await _claudeFetch({
-      model: 'claude-sonnet-4-5-20251001',
+      model: 'claude-sonnet-4-5',
       max_tokens: 500,
       system: 'You are the AI reporting system for Medifirst Clinic Malaysia. You ONLY output structured reports using emoji bullets and section headers. You NEVER write paragraphs or flowing prose. Every single output is formatted as a scannable structured report the CEO can read in 30 seconds.',
       messages: [{ role: 'user', content: prompt }]
@@ -9075,7 +9075,7 @@ Current conversation phase: ${phase}`;
 
   try {
     const data = await _claudeFetch({
-        model: 'claude-sonnet-4-5-20251001',
+        model: 'claude-sonnet-4-5',
         max_tokens: 1200,
         system: systemPrompt,
         messages: _pbMsgs.slice(-12),
@@ -14633,7 +14633,7 @@ Keep total under 220 words. Use **bold** for key phrases. Be insightful, not gen
 
   try {
     const d = await _claudeFetch({
-        model:'claude-sonnet-4-5-20251001',
+        model:'claude-sonnet-4-5',
         max_tokens: isCeo ? 700 : 200,
         messages:[{role:'user',content: isCeo ? ceoPrompt : staffPrompt}]
       });
@@ -15278,7 +15278,7 @@ When someone asks about availability, who is free, or wants to schedule somethin
       content: m.text + (m.aiActions?.length?'\n<actions>'+JSON.stringify(m.aiActions.map(a=>({type:a.type,params:a.params})))+'</actions>':'')
     }));
 
-    const data = await _claudeFetch({ model:'claude-sonnet-4-5-20251001', max_tokens:1000,
+    const data = await _claudeFetch({ model:'claude-sonnet-4-5', max_tokens:1000,
         system: systemPrompt + (tokenContext ? '\n\nFROM USER\'S MESSAGE TOKENS:'+tokenContext : ''), messages: history });
 const rawText = data.content?.[0]?.text||'Sorry, something went wrong. Please try again.';
 
@@ -21093,7 +21093,7 @@ Give me a sharp, direct prioritisation brief. Tell me what to do FIRST, SECOND, 
     let data;
     try {
       const data = await _claudeFetch({
-          model: 'claude-sonnet-4-5-20251001',
+          model: 'claude-sonnet-4-5',
           max_tokens: 1000,
           messages: [{ role:'user', content: prompt }]
         });
@@ -24627,7 +24627,7 @@ async function _hrAdvisorCall(userMsg, label, focus) {
   bodyEl.innerHTML='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;"><div style="width:18px;height:18px;border:2px solid #7c3aed;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0;"></div><span style="color:rgba(255,255,255,0.4);font-size:12px;">Your HR advisor is analysing...</span></div>';
   _hrAdvisorMsgs.push({role:'user',content:userMsg});
   try {
-    const data = await _claudeFetch({model:'claude-sonnet-4-5-20251001',max_tokens:900,
+    const data = await _claudeFetch({model:'claude-sonnet-4-5',max_tokens:900,
         system:_buildHRSystemPrompt(focus||'chat'),messages:_hrAdvisorMsgs.slice(-8)});
     const raw  = data.content?.[0]?.text||'No response.';
     _hrAdvisorMsgs.push({role:'assistant',content:raw});
@@ -25193,7 +25193,7 @@ async function hrGenerateLetter() {
   if (prev) prev.innerHTML = '<div style="text-align:center;padding:40px;color:var(--grey-400);"><div style="width:28px;height:28px;border:3px solid #1d4ed8;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px;"></div>Generating letter with AI...</div>';
 
   try {
-    const data = await _claudeFetch({model:'claude-sonnet-4-5-20251001',max_tokens:1200,
+    const data = await _claudeFetch({model:'claude-sonnet-4-5',max_tokens:1200,
         messages:[{role:'user',content:`Generate a professional ${tmpl.name} letter for a Malaysian GP clinic with these details: ${JSON.stringify(fields)}. Use proper Malaysian English, include relevant legal references (Employment Act 1955, etc.), and format it as a formal business letter. Make it complete and ready to print. Return only the letter text, no preamble.`}]});
     const text = data.content?.[0]?.text||'Error generating letter.';
     if (prev) prev.innerHTML = text.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
@@ -25778,7 +25778,7 @@ async function projReportAiNarrative(projId) {
   const lessons = p.closeReview?.lessonsLearned || '';
 
   try {
-    const resp = await _claudeFetch({ model:'claude-sonnet-4-5-20251001', max_tokens:400,
+    const resp = await _claudeFetch({ model:'claude-sonnet-4-5', max_tokens:400,
         messages:[{role:'user',content:`Write a professional project completion narrative for a Malaysian GP clinic's internal report.
 Project: "${p.name}" | Status: ${p.status} | Duration: ${days} days | Tasks: ${done}/${tasks.length} done
 OKRs: ${okrSummary||'None'}
@@ -31505,7 +31505,7 @@ async function _finAdvisorCall(userMsg, label) {
     const ctx = buildFinanceAdvisorContext();
     const sys = buildFinanceAdvisorPrompt(ctx);
     const data = await _claudeFetch({
-        model: 'claude-sonnet-4-5-20251001',
+        model: 'claude-sonnet-4-5',
         max_tokens: 800,
         system: sys,
         messages: _finAdvisorMsgs.slice(-8),
@@ -32389,7 +32389,7 @@ One clear priority the CEO should focus on financially.
 Keep it sharp and specific. Mention actual RM figures. Write as if you are a trusted financial advisor to this clinic owner.`;
 
     const data = await _claudeFetch({
-        model: 'claude-sonnet-4-5-20251001',
+        model: 'claude-sonnet-4-5',
         max_tokens: 1000,
         messages: [{ role: 'user', content: prompt }]
       });
@@ -37491,7 +37491,7 @@ async function prGenerateAiInsight(id) {
   }).join('. ');
 
   try {
-    const resp = await _claudeFetch({ model:'claude-sonnet-4-5-20251001', max_tokens:300,
+    const resp = await _claudeFetch({ model:'claude-sonnet-4-5', max_tokens:300,
         messages:[{ role:'user', content:`Project close review for a Malaysian GP clinic.
 Project: "${p.name}" | Duration: ${days} days | Tasks: ${done}/${tasks.length} done
 OKR Results: ${okrSummary||'No OKRs'}
@@ -40889,7 +40889,7 @@ async function sendAiMessage() {
     }
 
     var data = await _claudeFetch({
-        model:'claude-sonnet-4-5-20251001',
+        model:'claude-sonnet-4-5',
         max_tokens:1000,
         system: systemPrompt,
         messages: _aiHistory.slice(-8)
