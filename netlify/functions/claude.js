@@ -1,21 +1,25 @@
-export default async (request, context) => {
+exports.handler = async (event) => {
   try {
-    const body = await request.json();
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': Deno.env.get('ANTHROPIC_API_KEY'),
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
         'anthropic-beta': 'web-search-2025-03-05',
       },
-      body: JSON.stringify(body),
+      body: event.body,
     });
     const data = await response.json();
-    return Response.json(data);
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    };
   } catch (err) {
-    return Response.json({ error: err.message }, { status: 500 });
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: err.message }),
+    };
   }
 };
-
-export const config = { path: '/api/claude' };
