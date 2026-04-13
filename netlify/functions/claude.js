@@ -1,6 +1,10 @@
 const https = require('https');
 
 exports.handler = async (event) => {
+  if (event.httpMethod !== 'POST') {
+    return { statusCode: 405, body: 'Method Not Allowed' };
+  }
+
   return new Promise((resolve) => {
     const options = {
       hostname: 'api.anthropic.com',
@@ -20,7 +24,10 @@ exports.handler = async (event) => {
       res.on('end', () => {
         resolve({
           statusCode: 200,
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
           body: data,
         });
       });
@@ -33,7 +40,7 @@ exports.handler = async (event) => {
       });
     });
 
-    req.write(event.body);
+    req.write(event.body || '{}');
     req.end();
   });
 };
