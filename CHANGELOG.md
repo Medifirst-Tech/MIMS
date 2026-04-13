@@ -1,5 +1,12 @@
 # Changelog — Medifirst MIMS
 
+## [v1.2.2] — 2026-04-14
+### Fixed
+- Correct Claude model name: claude-sonnet-4-5 (no date suffix)
+- _claudeFetch now throws descriptive errors instead of silent failures
+- My Coach AI fully operational
+
+---
 ## [v1.2.1] — 2026-04-14
 ### Fixed
 - Wrong Claude model name causing all AI features to fail
