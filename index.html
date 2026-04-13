@@ -1797,7 +1797,13 @@ async function _claudeFetch(body) {
     body: typeof body === 'string' ? body : JSON.stringify(body),
   });
   if (!res.ok) throw new Error('Proxy error: ' + res.status);
-  return res.json();
+  const data = await res.json();
+  // Anthropic returns {type:'error', error:{...}} on failure
+  if (data.type === 'error') {
+    console.error('[Medifirst AI] API error:', JSON.stringify(data.error));
+    throw new Error(data.error?.message || 'Anthropic API error');
+  }
+  return data;
 }
 </script>
 
@@ -15304,7 +15310,8 @@ const rawText = data.content?.[0]?.text||'Sorry, something went wrong. Please tr
     _pushAiMessage(cleanText, legacyActions, botTimeStr, clarifyData, draftData);
 
   } catch(e) {
-    _pushAiMessage('⚠️ Could not connect to AI. Please check your internet connection and try again.', [], new Date().toLocaleTimeString('en-MY',{hour:'numeric',minute:'2-digit',hour12:true}));
+    console.error('[My Coach error]', e.message);
+    _pushAiMessage('⚠️ AI Error: ' + (e.message||'Unknown error') + ' — Please try again.', [], new Date().toLocaleTimeString('en-MY',{hour:'numeric',minute:'2-digit',hour12:true}));
   } finally {
     _aiTyping=false;
     const tb=document.getElementById('chat-typing-bar');
