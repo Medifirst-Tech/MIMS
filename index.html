@@ -63,6 +63,23 @@
   --shadow: 0 4px 18px rgba(0,0,0,0.11);
   --shadow-md: 0 8px 28px rgba(0,0,0,0.16);
 }
+@media (max-width: 1280px) {
+  :root { --sidebar-w: 220px; }
+}
+@media (max-width: 1024px) {
+  :root { --sidebar-w: 200px; }
+  .sidebar-brand span { display:none; }
+  .sidebar-user-role { display:none; }
+}
+@media (max-width: 900px) {
+  :root { --sidebar-w: 60px; }
+  .sidebar-brand { display:none; }
+  .sidebar-user-name { display:none; }
+  .sidebar-user-role { display:none; }
+  .nav-item span:last-child { display:none; }
+  .nav-section-label { display:none; }
+  .sidebar-footer { display:none; }
+}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'Plus Jakarta Sans',sans-serif;background:#e0f2fe;color:var(--grey-800);min-height:100vh;}
 
@@ -1835,6 +1852,8 @@ async function _claudeFetch(body) {
     <div class="login-error" id="login-error">❌ Invalid username or password. Please try again.</div>
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--grey-100);text-align:center;">
       <div style="font-size:11px;color:var(--grey-400);">Sign in with your registered credentials</div>
+      <!-- Quick Login — Testing Phase -->
+      <div id="quick-login-strip" style="margin-top:12px;"></div>
     </div>
   </div>
 </div>
@@ -2363,22 +2382,19 @@ async function _claudeFetch(body) {
         <!-- PENDING REVIEW ALERT (rendered dynamically) -->
         <div id="sv-review-alert" style="display:none;"></div>
 
-        <!-- ACCOUNTS TABLE -->
-        <div class="card fade-in-1">
-          <div class="card-header" style="flex-wrap:wrap;gap:8px;">
-            <div class="card-title">👥 Team Members</div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <button onclick="toggleDeptPanel()" style="padding:6px 14px;background:#f5f3ff;color:#7c3aed;border:1.5px solid #c4b5fd;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">🏬 Departments</button>
-              <button onclick="openAddStaffModal()" style="padding:6px 14px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">+ Add Member</button>
+        <!-- DEPARTMENTS — own section above Team Members -->
+        <div class="card fade-in-1" style="margin-bottom:12px;">
+          <div class="card-header">
+            <div>
+              <div class="card-title">🏬 Departments</div>
+              <div style="font-size:12px;color:var(--grey-400);margin-top:2px;">Manage clinic departments and structure</div>
             </div>
+            <button onclick="toggleDeptPanel()" style="padding:6px 14px;background:#f5f3ff;color:#7c3aed;border:1.5px solid #c4b5fd;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">✏️ Edit Departments</button>
           </div>
-          <!-- Team Summary Strip -->
-          <div id="team-summary-strip" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:16px;"></div>
-
-          <!-- Dept Manager (Admin only) -->
-          <div id="dept-manager-panel" style="display:none;background:linear-gradient(135deg,#f5f3ff,#eff6ff);border:1.5px solid #c4b5fd;border-radius:12px;padding:14px 16px;margin-bottom:16px;">
+          <div id="dept-summary-chips" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px 4px 4px;"></div>
+          <div id="dept-manager-panel" style="display:none;background:linear-gradient(135deg,#f5f3ff,#eff6ff);border:1.5px solid #c4b5fd;border-radius:12px;padding:14px 16px;margin-top:10px;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-              <div style="font-size:13px;font-weight:800;color:#7c3aed;">🏬 Department Manager</div>
+              <div style="font-size:13px;font-weight:800;color:#7c3aed;">✏️ Edit Departments</div>
               <button onclick="document.getElementById('dept-manager-panel').style.display='none'" style="background:none;border:none;color:var(--grey-400);cursor:pointer;font-size:16px;">✕</button>
             </div>
             <div id="dept-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;"></div>
@@ -2387,7 +2403,15 @@ async function _claudeFetch(body) {
               <button onclick="addDept()" style="padding:0 16px;background:#7c3aed;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">+ Add</button>
             </div>
           </div>
+        </div>
 
+        <!-- ACCOUNTS TABLE -->
+        <div class="card fade-in-1">
+          <div class="card-header" style="flex-wrap:wrap;gap:8px;">
+            <div class="card-title">👥 Team Members</div>
+            <button onclick="openAddStaffModal()" style="padding:6px 14px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">+ Add Member</button>
+          </div>
+          <div id="team-summary-strip" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:16px;"></div>
           <div id="staff-mgmt-table">
             <!-- rendered by renderStaffMgmt() -->
           </div>
@@ -4567,6 +4591,8 @@ function fillLogin(u, p) {
 // This stub kept for compatibility
 // doLogin defined as async function earlier in the page
 document.getElementById('login-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+// Render quick login buttons for testing phase
+setTimeout(renderQuickLogin, 200);
 
 function updateSidebarUser() {
   if (!currentUser) return;
@@ -4593,6 +4619,43 @@ function updateSidebarUser() {
   }
 }
 
+
+// ── Quick Login — Testing Phase ───────────────────────────────────────────────
+function renderQuickLogin() {
+  const strip = document.getElementById('quick-login-strip');
+  if (!strip) return;
+  // All available logins: CEO + all staff
+  const accounts = [
+    { username:'ceo', name:'CEO / Dr. Owner', color:'#f59e0b', badge:'👑' },
+    ...STAFF_LIST.map(s => ({
+      username: s.username,
+      name: s.name.split(' ')[0], // first name only
+      color: s.color || '#3b82f6',
+      badge: TIER_META[s.tier||'member']?.badge || '👤'
+    }))
+  ].filter(a => PASSWORDS_EARLY[a.username]); // only show if password exists
+
+  if (accounts.length <= 1) { strip.innerHTML = ''; return; } // hide if only CEO
+
+  strip.innerHTML = `
+    <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">⚡ Quick Login — Testing</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;">
+      ${accounts.map(a => `
+        <button onclick="quickLogin('${a.username}')"
+          style="display:flex;align-items:center;gap:5px;padding:5px 10px;background:${a.color}18;border:1.5px solid ${a.color}44;border-radius:20px;cursor:pointer;font-size:11px;font-weight:700;color:${a.color};font-family:inherit;transition:all 0.15s;"
+          onmouseover="this.style.background='${a.color}30'" onmouseout="this.style.background='${a.color}18'">
+          ${a.badge} ${a.name}
+        </button>`).join('')}
+    </div>`;
+}
+
+function quickLogin(username) {
+  const userEl = document.getElementById('login-user');
+  const passEl = document.getElementById('login-pass');
+  if (userEl) userEl.value = username;
+  if (passEl) passEl.value = PASSWORDS_EARLY[username] || '';
+  doLogin();
+}
 
 function launchApp() {
   document.getElementById('login-screen').classList.remove('active');
@@ -4662,13 +4725,17 @@ function launchApp() {
 
 // -- NAVIGATION --------------------------------------------------------------
 // Staff management access: CEO can delegate to specific execs
-let staffMgmtAccess = ['ceo']; // usernames with staff mgmt access
+let staffMgmtAccess = (() => {
+  try {
+    const saved = JSON.parse(localStorage.getItem('mims_staff_mgmt_access') || 'null');
+    return Array.isArray(saved) ? saved : ['ceo'];
+  } catch(e) { return ['ceo']; }
+})(); // usernames with staff mgmt access — persisted
 
 function hasStaffMgmt() {
   if (!currentUser) return false;
-  if (!currentUser) return false;
-  if (!currentUser) return false;
-  return staffMgmtAccess.includes(Object.keys(USERS).find(k => USERS[k] === currentUser));
+  const uname = currentUser.username || Object.keys(USERS).find(k => USERS[k] === currentUser);
+  return staffMgmtAccess.includes(uname);
 }
 
 function buildNavItems() {
@@ -4691,8 +4758,8 @@ function buildNavItems() {
     badge: (getMyTaskUrgentCount()||0)+(getMyPendingLeaveCount()||0) || null,
     badgeColor:'red' });
 
-  // Staff Management — CEO and managers only
-  if (isCeo || isMgr) items.push({ id:'users', label:'Staff Management', icon:'users' });
+  // Staff Management — CEO only, or staff with explicit CEO delegation
+  if (isCeo || (!isCeo && hasStaffMgmt())) items.push({ id:'users', label:'Staff Management', icon:'users' });
 
   // DEPARTMENTS section — role-based visibility
   const deptModuleMap = {
@@ -4783,8 +4850,8 @@ function navTo(pageId) {
     navTo('exec-dash');
     return;
   }
-  if (_mgrUp.has(pageId) && !_isCeo && !_isMgr) {
-    showToast('⛔ Access restricted — managers and above only', 'warn', 3000);
+  if (_mgrUp.has(pageId) && !_isCeo && !hasStaffMgmt()) {
+    showToast('⛔ Access restricted — not authorised', 'warn', 3000);
     navTo('exec-dash');
     return;
   }
@@ -8270,9 +8337,16 @@ function setStaffTier(username, tier) {
   const idx = STAFF_LIST.findIndex(s => s.username === username);
   if (idx < 0) return;
   STAFF_LIST[idx].tier = tier;
-  if (USERS[username]) { USERS[username].tier = tier; USERS[username].type = tier==='admin'?'ceo':'exec'; }
-  showToast(`✅ ${STAFF_LIST[idx].name} is now ${TIER_META[tier]?.label||tier}`, 'success');
+  if (USERS[username]) {
+    USERS[username].tier = tier;
+    USERS[username].type = tier === 'admin' ? 'ceo' : 'exec';
+  }
+  // Persist both STAFF_LIST and USERS to localStorage
+  saveStaffList();
+  saveUsers();
+  showToast(`✅ ${STAFF_LIST[idx].name} is now ${TIER_META[tier]?.label||tier} — saved`, 'success', 3000);
   renderStaffMgmt();
+  buildNav();
 }
 
 function renderTeamSummary() {
@@ -8298,17 +8372,32 @@ function renderTeamSummary() {
 }
 
 function renderDeptChips() {
-  const panel = document.getElementById('dept-manager-panel');
   const chips = document.getElementById('dept-chips');
-  if (!chips) return;
+  const summary = document.getElementById('dept-summary-chips');
   const depts = _getActiveDepts();
-  chips.innerHTML = depts.map(d => {
-    const inUse = STAFF_LIST.some(s => s.dept === d);
+
+  const chipHtml = depts.map(d => {
+    const count = STAFF_LIST.filter(s => s.dept === d).length;
+    const inUse = count > 0;
     return `<span style="display:inline-flex;align-items:center;gap:6px;background:white;border:1.5px solid #c4b5fd;color:#7c3aed;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;">
       ${d}
       ${!inUse ? `<button onclick="removeDept('${d}')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0;line-height:1;">×</button>` : ''}
     </span>`;
   }).join('');
+
+  if (chips) chips.innerHTML = chipHtml;
+
+  // Summary chips — read-only, always visible, shows staff count
+  if (summary) {
+    summary.innerHTML = depts.length
+      ? depts.map(d => {
+          const count = STAFF_LIST.filter(s => s.dept === d).length;
+          return `<span style="display:inline-flex;align-items:center;gap:5px;background:#f5f3ff;border:1px solid #ddd6fe;color:#6d28d9;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;">
+            🏬 ${d} <span style="background:#ede9fe;color:#7c3aed;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:800;">${count}</span>
+          </span>`;
+        }).join('')
+      : '<span style="font-size:12px;color:#94a3b8;">No departments yet — click Edit Departments to add</span>';
+  }
 }
 
 function addDept() {
@@ -8679,7 +8768,7 @@ function renderExecTabBody(username, tab) {
         '<div class="exec-task-list">' +
         list.slice(0,5).map(function(t) {
           var dotColor = key==='overdue'?'var(--red)':key==='ongoing'?'var(--blue)':'var(--grey-300)';
-          var dueLabel = t.due ? (t.due < today ? '⚠ ' + t.due : t.due) : '';
+          var dueLabel = t.due ? _smartDate(t.due, {raw:true}) : '';
           return '<div class="exec-task-item">' +
             '<div class="exec-task-status-dot" style="background:' + dotColor + ';"></div>' +
             '<div style="flex:1;font-size:12px;font-weight:600;color:var(--grey-800);">' + t.name + '</div>' +
@@ -11035,6 +11124,19 @@ function openAddEventModal(prefillDate) {
   document.getElementById('ev-date').value = prefillDate || `${calYear}-${String(calMonth+1).padStart(2,'0')}-01`;
   document.getElementById('ev-time').value = '';
   document.getElementById('ev-end-time').value = '';
+  // Auto end time +30 min when start time is set
+  setTimeout(() => {
+    const evTimeEl = document.getElementById('ev-time');
+    const evEndEl  = document.getElementById('ev-end-time');
+    if (evTimeEl && evEndEl) {
+      evTimeEl.addEventListener('change', function() {
+        if (!this.value) return;
+        const [h,m] = this.value.split(':').map(Number);
+        const end = new Date(2000,0,1,h,m+30);
+        evEndEl.value = String(end.getHours()).padStart(2,'0')+':'+String(end.getMinutes()).padStart(2,'0');
+      });
+    }
+  }, 100);
   document.getElementById('ev-location').value = '';
   document.getElementById('ev-desc').value = '';
   document.getElementById('modal-add-event').classList.add('open');
@@ -13803,6 +13905,35 @@ function formatDateShort(dateStr) {
   if (!dateStr) return '';
   try {
     return new Date(dateStr+'T00:00').toLocaleDateString('en-MY',{day:'numeric',month:'short',year:'numeric'});
+  } catch(e) { return dateStr; }
+}
+
+// Smart human-readable date: Today / Tomorrow / Wed 18 Apr / Overdue · 14 Apr
+function _smartDate(dateStr, opts) {
+  if (!dateStr) return '—';
+  opts = opts || {};
+  try {
+    const today    = new Date(); today.setHours(0,0,0,0);
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
+    const weekEnd  = new Date(today); weekEnd.setDate(today.getDate()+6);
+    const d = new Date(dateStr+'T00:00'); d.setHours(0,0,0,0);
+    const diffDays = Math.round((d - today) / 86400000);
+
+    if (diffDays < 0) {
+      // Overdue
+      const label = d.toLocaleDateString('en-MY',{day:'numeric',month:'short'});
+      return opts.raw ? `Overdue · ${label}` : `<span style="color:#CC2229;font-weight:700;">Overdue · ${label}</span>`;
+    }
+    if (diffDays === 0) return opts.raw ? 'Today' : '<span style="color:#059669;font-weight:700;">Today</span>';
+    if (diffDays === 1) return opts.raw ? 'Tomorrow' : '<span style="color:#d97706;font-weight:700;">Tomorrow</span>';
+    if (diffDays <= 6) {
+      // This week — show day + date
+      const label = d.toLocaleDateString('en-MY',{weekday:'short',day:'numeric',month:'short'});
+      return opts.raw ? label : `<span style="color:#0284c7;font-weight:600;">${label}</span>`;
+    }
+    // Beyond this week
+    const sameYear = d.getFullYear() === today.getFullYear();
+    return d.toLocaleDateString('en-MY',{day:'numeric',month:'short',...(sameYear?{}:{year:'numeric'})});
   } catch(e) { return dateStr; }
 }
 
@@ -17608,6 +17739,9 @@ function renderStaffMgmt() {
   const isCeo = isAdmin();
   const me = Object.keys(USERS).find(k=>USERS[k]===currentUser) || 'ceo';
 
+  // Render dept summary chips on every load
+  renderDeptChips();
+
   // -- Pending review alert -------------------------------------------------
   const alertEl = document.getElementById('sv-review-alert');
   if (alertEl) {
@@ -18592,12 +18726,19 @@ function saveStaffProfile(username) {
   const jdInputs = document.querySelectorAll('#sp-jd-list input[id^="sp-jd-"]');
   staff.jd = Array.from(jdInputs).map(el => el.value.trim()).filter(Boolean);
 
+  // Sync tier to USERS object so login respects the updated tier
+  if (USERS[username]) {
+    USERS[username].tier = staff.tier || 'member';
+    USERS[username].type = staff.tier === 'admin' ? 'ceo' : 'exec';
+  }
+
   saveStaffList();
+  saveUsers(); // Critical: persist USERS so tier change survives page reload
   document.getElementById('staff-profile-modal')?.remove();
   renderStaffMgmt();
   renderGeneralSotmWall();
   if (currentUser && currentUser.username === username) renderExecDash();
-  showToast(`✅ ${staff.name} — HR record saved`, 'blue');
+  showToast(`✅ ${staff.name} — profile saved`, 'blue');
 }
 
 function toggleStaffMgmt(username, grant, name) {
@@ -18606,8 +18747,10 @@ function toggleStaffMgmt(username, grant, name) {
     showToast(`✅ Staff Management access granted to ${name}`, 'blue');
   } else {
     staffMgmtAccess = staffMgmtAccess.filter(u => u !== username);
-    showToast(`🔒 Staff Management access revoked from ${name}`, 'yellow');
+    showToast(`\uD83D\uDD12 Staff Management access revoked from ${name}`, 'yellow');
   }
+  // Persist delegation to localStorage
+  localStorage.setItem('mims_staff_mgmt_access', JSON.stringify(staffMgmtAccess));
   renderStaffMgmt();
   buildNav(); // Refresh sidebar
   // Re-activate nav item
@@ -20441,17 +20584,77 @@ function toggleSubtaskDone(taskId, subtaskId) {
   const st = t.subtasks.find(s => s.id === subtaskId);
   if (!st) return;
   st.status = st.status === 'completed' ? 'not-started' : 'completed';
-
-  // Check if ALL checklist items done → show toast suggestion (no blocking dialog)
   const allDone = t.subtasks.every(s => s.status === 'completed');
   if (allDone && t.subtasks.length > 0 && t.status !== 'completed') {
-    showToast(
-      '☑ All checklist items done! Click Mark Complete to finish the task.',
-      'success'
-    );
+    showToast('☑ All checklist items done! Click Mark Complete to finish the task.', 'success');
   }
   _saveMyTasks();
   renderTaskPage();
+}
+
+// In-place checklist toggle — no modal flash, preserves expanded state
+function toggleSubtaskDoneInPlace(taskId, subtaskId) {
+  const allTasks = Object.values(MY_TASKS).flat();
+  const t = allTasks.find(x => String(x.id) === String(taskId));
+  if (!t || !t.subtasks) return;
+  const st = t.subtasks.find(s => s.id === subtaskId);
+  if (!st) return;
+  st.status = st.status === 'completed' ? 'not-started' : 'completed';
+  const allDone = t.subtasks.every(s => s.status === 'completed');
+  if (allDone && t.subtasks.length > 0 && t.status !== 'completed') {
+    showToast('☑ All checklist items done! Click Mark Complete to finish the task.', 'success');
+  }
+  _saveMyTasks();
+  _refreshChecklistInPlace(t);
+}
+
+// In-place delete subtask — no modal flash
+function deleteSubtaskInPlace(taskId, subtaskId) {
+  const allTasks = Object.values(MY_TASKS).flat();
+  const t = allTasks.find(x => String(x.id) === String(taskId));
+  if (!t || !t.subtasks) return;
+  t.subtasks = t.subtasks.filter(s => s.id !== subtaskId);
+  _saveMyTasks();
+  _refreshChecklistInPlace(t);
+}
+
+// Rebuild only the checklist box DOM without touching the modal
+function _refreshChecklistInPlace(t) {
+  const box = document.getElementById('task-detail-checklist-box-' + t.id);
+  if (!box) return;
+
+  const subs = t.subtasks || [];
+  const done = subs.filter(s => s.status === 'completed').length;
+  const total = subs.length;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  const barColor = pct === 100 ? '#16a34a' : 'var(--blue)';
+
+  const progHtml = total ? `<div style="display:flex;align-items:center;gap:10px;">
+    <div style="flex:1;background:#f1f5f9;border-radius:99px;height:8px;overflow:hidden;">
+      <div style="height:100%;width:${pct}%;background:${barColor};border-radius:99px;transition:width 0.4s;"></div>
+    </div>
+    <span style="font-size:12px;font-weight:800;color:${barColor};">${pct}%</span>
+    <span style="font-size:11px;color:#94a3b8;">${done}/${total} done</span>
+  </div>` : '';
+
+  const subsHtml = subs.map(st => `
+    <div style="display:flex;align-items:center;gap:10px;background:white;padding:10px 14px;border-bottom:1px solid #f1f5f9;">
+      <div onclick="toggleSubtaskDoneInPlace('${t.id}','${st.id}')"
+        style="width:18px;height:18px;border-radius:5px;border:2px solid ${st.status==='completed'?'#16a34a':'#cbd5e1'};background:${st.status==='completed'?'#16a34a':'white'};display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all 0.15s;">
+        ${st.status==='completed'?'<span style="color:white;font-size:10px;font-weight:900;">✓</span>':''}
+      </div>
+      <div style="flex:1;font-size:13px;font-weight:600;${st.status==='completed'?'text-decoration:line-through;color:#94a3b8;':'color:#1e293b;'}">${st.name}</div>
+      <button onclick="deleteSubtaskInPlace('${t.id}','${st.id}')" style="background:none;border:none;cursor:pointer;color:#e2e8f0;font-size:13px;padding:2px 5px;" onmouseover="this.style.color='#CC2229'" onmouseout="this.style.color='#e2e8f0'">✕</button>
+    </div>`).join('');
+
+  box.innerHTML = `
+    <div style="padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">☑ Checklist${total?' — '+done+'/'+total+' done':''}</div>
+      <button onclick="addSubtaskFromDetail('${t.id}')" style="background:#e8f6fd;color:var(--blue);border:1px solid #93c5fd;border-radius:7px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;">+ Add</button>
+    </div>
+    ${total?`<div style="padding:0 14px 8px;">${progHtml}</div>`:''}
+    ${subsHtml?`<div style="border-top:1px solid #e2e8f0;">${subsHtml}</div>`:'<div style="padding:10px 14px;font-size:12px;color:#94a3b8;">No checklist items yet.</div>'}
+  `;
 }
 
 function addSubtask(taskId) {
@@ -21187,13 +21390,15 @@ function toggleTaskDone(id) {
 }
 
 let _taskDetailExpanded = false;
+let _taskDetailCurrentId = null;
 function toggleTaskDetailExpand() {
   _taskDetailExpanded = !_taskDetailExpanded;
   const box = document.getElementById('task-detail-box');
   const btn = document.getElementById('task-detail-expand-btn');
   const isExp = _taskDetailExpanded;
   if (box) { box.style.width = isExp?'92vw':'min(660px,96vw)'; box.style.maxHeight = isExp?'95vh':'90vh'; }
-  if (btn) { btn.textContent = isExp?'⛶ Collapse':'⛶ Expand'; btn.title = isExp?'Collapse':'Expand'; }
+  if (btn) { btn.textContent = isExp?'⧆ Collapse':'⧆ Expand'; btn.title = isExp?'Collapse':'Expand'; }
+  if (_taskDetailCurrentId) openTaskDetail(_taskDetailCurrentId);
 }
 
 function _tqList(type) {
@@ -21355,6 +21560,44 @@ function detectGoogleType(url) {
   return null;
 }
 
+
+function addTaskLinkFromDetail(taskId) {
+  // Inline modal — prompt() blocked in iframes
+  const existing = document.getElementById('task-link-modal');
+  if (existing) existing.remove();
+  const m = document.createElement('div');
+  m.id = 'task-link-modal';
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:5000;display:flex;align-items:center;justify-content:center;';
+  m.innerHTML = `<div style="background:white;border-radius:14px;padding:20px 24px;width:min(400px,90vw);box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <div style="font-size:14px;font-weight:800;margin-bottom:14px;">🔗 Add Link or File Reference</div>
+    <input id="task-link-input" class="form-input" placeholder="Paste URL or Google Drive link..." style="width:100%;font-size:13px;margin-bottom:12px;box-sizing:border-box;"/>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="document.getElementById('task-link-modal').remove()" style="padding:7px 14px;background:#f1f5f9;border:none;border-radius:8px;font-size:13px;cursor:pointer;">Cancel</button>
+      <button onclick="_confirmAddTaskLinkDetail('${taskId}')" style="padding:7px 14px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">Add Link</button>
+    </div>
+  </div>`;
+  document.body.appendChild(m);
+  setTimeout(() => document.getElementById('task-link-input')?.focus(), 100);
+}
+function _confirmAddTaskLinkDetail(taskId) {
+  const url = document.getElementById('task-link-input')?.value?.trim();
+  if (!url) { showToast('Please enter a URL','warn'); return; }
+  document.getElementById('task-link-modal')?.remove();
+  const allUsers = ['ceo', ...STAFF_LIST.map(s=>s.username)];
+  for (const u of allUsers) {
+    const tasks = MY_TASKS[u]||[];
+    const t = tasks.find(x=>String(x.id)===String(taskId));
+    if (t) {
+      if (!t.links) t.links = [];
+      t.links.push(url);
+      saveTasks();
+      openTaskDetail(taskId);
+      showToast('🔗 Link added', 'success');
+      return;
+    }
+  }
+  showToast('Task not found','warn');
+}
 function renderGoogleLink(link) {
   const gtype = detectGoogleType(link.url);
   if (gtype) {
@@ -21858,7 +22101,7 @@ function openTrackModal(mode) {
     return '<div class="track-item" onclick="selectTrackItem(\'Task\',\'' + safeName + '\',\'' + safeProj + '\')">'
       + '<div style="width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0;"></div>'
       + '<div style="flex:1;"><div style="font-size:13px;font-weight:600;">' + t.name + '</div>'
-      + '<div style="font-size:11px;color:var(--grey-400);">' + urgBadge + ' Due ' + (t.due||'--') + projInfo + '</div></div>'
+      + '<div style="font-size:11px;color:var(--grey-400);">' + urgBadge + ' Due ' + (t.due?_smartDate(t.due,{raw:true}):'--') + projInfo + '</div></div>'
       + '<span style="font-size:10px;font-weight:700;background:var(--blue-light);color:var(--blue);padding:2px 8px;border-radius:6px;">Task</span>'
       + '</div>';
   }).join('');
@@ -22209,10 +22452,7 @@ function renderDashTasks() {
     ? `<div style="padding:24px;text-align:center;color:var(--grey-400);">✅ No tasks -- all clear!</div>`
     : list.map(t => {
       const done = t.status === 'completed';
-      const due  = t.due ? new Date(t.due) : null;
-      const diff = due ? (due - today) / 86400000 : null;
-      const dueLabel = due ? due.toLocaleDateString('en-MY',{day:'numeric',month:'short'}) : '--';
-      const dueColor = done ? 'var(--grey-400)' : diff!==null&&diff<0 ? 'var(--red)' : diff!==null&&diff<=3 ? '#92670a' : 'var(--grey-400)';
+      const dueLabel = done ? 'Completed' : (t.due ? _smartDate(t.due) : '—');
       const tags = [];
       if (!done && t.urgency==='urgent')       tags.push(`<span class="tag tag-urgent">Urgent</span>`);
       if (!done && t.importance==='important') tags.push(`<span class="tag tag-important">Important</span>`);
@@ -22225,7 +22465,7 @@ function renderDashTasks() {
           <div class="task-name" style="${done?'text-decoration:line-through;color:var(--grey-400);':''}">${t.name}</div>
           <div class="task-tags">${tags.join('')}</div>
         </div>
-        <div style="font-size:11px;color:${dueColor};white-space:nowrap;">${done?'Completed':'Due: '+dueLabel}</div>
+        <div style="font-size:11px;white-space:nowrap;">${dueLabel}</div>
       </div>`;
     }).join('');
 }
@@ -26130,11 +26370,15 @@ function renderMyCalendar() {
       time:e.time||'', note:e.note||'' });
   });
 
-  // Work events (shared across all staff)
+  // Work events — filtered by visibility scope
   const workEvents = _workEventsLoad();
+  const _myUser = getMyUsername();
   workEvents.forEach(e => {
-    if (e.date) addDay(e.date, { type:'work', color:'#0ea5e9', label:e.title, id:e.id,
-      time:e.time||'', endTime:e.endTime||'', subType:e.subType||'', note:e.note||'', createdBy:e.createdBy||'' });
+    const vis = e.visibleTo || ['all']; // legacy events default to all
+    const canSee = vis.includes('all') || vis.includes(_myUser) || e.createdBy === _myUser;
+    if (e.date && canSee) addDay(e.date, { type:'work', color:'#0ea5e9', label:e.title, id:e.id,
+      time:e.time||'', endTime:e.endTime||'', subType:e.subType||'', note:e.note||'', createdBy:e.createdBy||'',
+      visibleTo: vis });
   });
 
   // ── Apply filter pills ──────────────────────────────────────────
@@ -26236,7 +26480,11 @@ function myCalShowDay(dateStr) {
     return r.username===me && dateStr>=s && dateStr<=e;
   });
   const myPersonal = _persEventsLoad(me).filter(e => e.date===dateStr);
-  const myWork = _workEventsLoad().filter(e => e.date===dateStr);
+  const myWork = _workEventsLoad().filter(e => {
+    if (e.date !== dateStr) return false;
+    const vis = e.visibleTo || ['all'];
+    return vis.includes('all') || vis.includes(me) || e.createdBy === me;
+  });
 
   const existing = document.getElementById('modal-my-cal-day');
   if (existing) existing.remove();
@@ -26738,14 +26986,31 @@ function openWorkEventModal(prefillDate) {
   modal.className = 'modal-overlay open';
   modal.id = 'modal-work-event';
   const subTypeOpts = WORK_EVENT_SUBTYPES.map(t => '<option value="'+t+'">'+t+'</option>').join('');
-  modal.innerHTML = '<div class="modal" style="width:440px;">' +
+  const allStaff = STAFF_LIST.map(s => '<option value="'+s.username+'">'+s.name+'</option>').join('');
+  modal.innerHTML = '<div class="modal" style="width:480px;">' +
     '<div style="padding:16px 20px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;">' +
-      '<div style="font-size:14px;font-weight:800;">🏢 Add Work Event</div>' +
+      '<div style="font-size:14px;font-weight:800;">📅 Add Event</div>' +
       '<button onclick="closeWorkModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;">×</button>' +
     '</div>' +
     '<div style="padding:16px 20px;display:flex;flex-direction:column;gap:12px;">' +
-      '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:8px 12px;font-size:11px;color:#0284c7;line-height:1.4;">' +
-        '👥 Work events are <b>visible to all staff</b> on their calendars.' +
+      // Visibility scope selector
+      '<div>' +
+        '<label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:6px;">👁 Visibility</label>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">' +
+          '<label id="we-vis-private-lbl" onclick="_weSetVis(&apos;private&apos;)" style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1.5px solid #7c3aed;border-radius:8px;cursor:pointer;background:#f5f3ff;">' +
+            '<input type="radio" name="we-vis" value="private" checked style="accent-color:#7c3aed;"/> <span style="font-size:12px;font-weight:700;color:#7c3aed;">🔒 Only Me</span>' +
+          '</label>' +
+          '<label id="we-vis-select-lbl" onclick="_weSetVis(&apos;select&apos;)" style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;background:#fff;">' +
+            '<input type="radio" name="we-vis" value="select" style="accent-color:#0284c7;"/> <span style="font-size:12px;font-weight:700;color:#64748b;">👤 Select Staff</span>' +
+          '</label>' +
+          '<label id="we-vis-all-lbl" onclick="_weSetVis(&apos;all&apos;)" style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;background:#fff;">' +
+            '<input type="radio" name="we-vis" value="all" style="accent-color:#059669;"/> <span style="font-size:12px;font-weight:700;color:#64748b;">👥 All Staff</span>' +
+          '</label>' +
+        '</div>' +
+        '<div id="we-staff-select-wrap" style="display:none;margin-top:8px;">' +
+          '<select id="we-staff-select" multiple class="form-input" style="width:100%;font-size:12px;min-height:80px;">' + allStaff + '</select>' +
+          '<div style="font-size:10px;color:#94a3b8;margin-top:3px;">Hold Ctrl/Cmd to select multiple staff</div>' +
+        '</div>' +
       '</div>' +
       '<div>' +
         '<label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Event Type *</label>' +
@@ -26762,7 +27027,7 @@ function openWorkEventModal(prefillDate) {
         '</div>' +
         '<div>' +
           '<label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Start Time</label>' +
-          '<input id="we-time" type="time" class="form-input" style="width:100%;font-size:13px;"/>' +
+          '<input id="we-time" type="time" class="form-input" style="width:100%;font-size:13px;" oninput="_weAutoEndTime()"/>' +
         '</div>' +
         '<div>' +
           '<label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">End Time</label>' +
@@ -26771,16 +27036,41 @@ function openWorkEventModal(prefillDate) {
       '</div>' +
       '<div>' +
         '<label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Details / Notes</label>' +
-        '<textarea id="we-note" class="form-input" style="width:100%;font-size:13px;resize:vertical;min-height:60px;" placeholder="Optional details visible to all staff"></textarea>' +
+        '<textarea id="we-note" class="form-input" style="width:100%;font-size:13px;resize:vertical;min-height:60px;" placeholder="Optional details"></textarea>' +
       '</div>' +
     '</div>' +
     '<div style="padding:12px 20px;border-top:1px solid #f1f5f9;display:flex;gap:8px;justify-content:flex-end;">' +
       '<button onclick="closeWorkModal()" style="padding:8px 16px;background:var(--grey-100);border:1px solid var(--grey-200);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">Cancel</button>' +
-      '<button onclick="workEventSave()" style="padding:8px 18px;background:#0ea5e9;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">Save Work Event</button>' +
+      '<button onclick="workEventSave()" style="padding:8px 18px;background:#0ea5e9;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">Save Event</button>' +
     '</div>' +
   '</div>';
   document.body.appendChild(modal);
   setTimeout(() => document.getElementById('we-title')?.focus(), 100);
+}
+
+function _weSetVis(val) {
+  ['private','select','all'].forEach(v => {
+    const lbl = document.getElementById('we-vis-'+v+'-lbl');
+    if (!lbl) return;
+    const active = v === val;
+    lbl.style.borderColor = active ? (v==='private'?'#7c3aed':v==='select'?'#0284c7':'#059669') : '#e2e8f0';
+    lbl.style.background  = active ? (v==='private'?'#f5f3ff':v==='select'?'#f0f9ff':'#f0fdf4') : '#fff';
+    const span = lbl.querySelector('span');
+    if (span) span.style.color = active ? (v==='private'?'#7c3aed':v==='select'?'#0284c7':'#059669') : '#64748b';
+    const radio = lbl.querySelector('input');
+    if (radio) radio.checked = active;
+  });
+  const wrap = document.getElementById('we-staff-select-wrap');
+  if (wrap) wrap.style.display = val === 'select' ? '' : 'none';
+}
+
+function _weAutoEndTime() {
+  const start = document.getElementById('we-time')?.value;
+  const endEl = document.getElementById('we-endtime');
+  if (!start || !endEl || endEl.value) return;
+  const [h,m] = start.split(':').map(Number);
+  const end = new Date(2000,0,1,h,m+30);
+  endEl.value = String(end.getHours()).padStart(2,'0')+':'+String(end.getMinutes()).padStart(2,'0');
 }
 
 function workEventSave() {
@@ -26792,13 +27082,31 @@ function workEventSave() {
   const endTime = document.getElementById('we-endtime')?.value || '';
   const note    = document.getElementById('we-note')?.value?.trim() || '';
   if (!title || !date) { showToast('Title and date required','warn'); return; }
+
+  // Visibility
+  const visRadio = document.querySelector('input[name="we-vis"]:checked');
+  const vis = visRadio?.value || 'all';
+  let visibleTo = [];
+  if (vis === 'all') {
+    visibleTo = ['all'];
+  } else if (vis === 'select') {
+    const sel = document.getElementById('we-staff-select');
+    visibleTo = sel ? Array.from(sel.selectedOptions).map(o=>o.value) : [];
+    if (!visibleTo.length) { showToast('Please select at least one staff member','warn'); return; }
+  } else {
+    visibleTo = [me]; // private
+  }
+
   const events = _workEventsLoad();
-  events.push({ id:'we'+Date.now(), title, date, time, endTime, subType, note, createdBy: me });
+  events.push({ id:'we'+Date.now(), title, date, time, endTime, subType, note, createdBy: me, visibleTo });
   _workEventsSave(events);
   closeWorkModal();
   document.getElementById('modal-my-cal-day')?.remove();
-  showToast('✅ Work event added — visible to all staff','success');
+  const msg = vis==='private' ? '🔒 Private event saved' : vis==='all' ? '✅ Event visible to all staff' : '✅ Event shared with selected staff';
+  showToast(msg, 'success');
   renderMyCalendar();
+  // Also refresh general dashboard calendar if all-staff event
+  if (vis === 'all' && typeof buildCalendar === 'function') buildCalendar();
 }
 
 function workEventDelete(id, dateStr) {
@@ -26816,41 +27124,110 @@ function workEventDelete(id, dateStr) {
 
 // Role → Advisor config
 const AI_ADVISOR_ROLES = {
-  ceo:       { name:'My Coach', tag:'Business Advisor', icon:'🧠', color:'#7c3aed',
-               bg:'linear-gradient(135deg,#0f172a,#1e1b4b)', border:'rgba(124,58,237,0.35)',
-               desc:'Strategy · People · Finance · Your personal advisor',
-               quickActions:['📊 How are we doing this month?','👥 Team performance check','💰 Financial health check','⚠️ What needs my attention?'],
-               systemRole:'You are a personal business coach for a Malaysian GP clinic owner-doctor. You know this clinic deeply — the staff, the numbers, the projects. Be frank, specific, encouraging when warranted, direct when needed. Always cite real numbers from context. Suggest one clear next action at the end of each response.' },
-  hr:        { name:'My Coach', tag:'People & Culture', icon:'👥', color:'#0891b2',
-               bg:'linear-gradient(135deg,#0f2030,#0a2535)', border:'rgba(8,145,178,0.35)',
-               desc:'Team · HR law · Performance · Your people coach',
-               quickActions:['👥 How is the team really doing?','⚠️ Who needs attention now?','🏛️ Any compliance risks?','💬 Help me handle a staff issue'],
-               systemRole:'You are a people coach and Malaysian HR expert. You know this team personally. Give warm, practical, legally sound guidance. Celebrate staff wins. Flag risks early. Cite Employment Act 1955, EPF Act, SOCSO when relevant. Always end with a specific coaching suggestion.' },
-  finance:   { name:'My Coach', tag:'Finance & Numbers', icon:'💰', color:'#059669',
-               bg:'linear-gradient(135deg,#0a1f15,#0f2a1c)', border:'rgba(5,150,105,0.35)',
-               desc:'P&L · Cash flow · Costs · Your finance coach',
-               quickActions:['📊 How did we do this month?','📈 Revenue trend','⚠️ Cost concerns to fix','💡 What should I prioritise?'],
-               systemRole:'You are a finance coach for a Malaysian GP clinic. You understand this clinic numbers. Give precise, actionable financial coaching. Cite specific RM figures. Flag cash flow risks. Suggest concrete cost optimisations. Malaysian EPF, SST, and tax context.' },
-  marketing: { name:'My Coach', tag:'Growth & Marketing', icon:'🎯', color:'#db2777',
-               bg:'linear-gradient(135deg,#1a0a15,#250f1e)', border:'rgba(219,39,119,0.35)',
-               desc:'Patients · Growth · Content · Your growth coach',
-               quickActions:['📣 How do we grow faster?','📱 Give me a content plan','🎯 Campaign idea for this month','📊 How to keep more patients?'],
-               systemRole:'You are a growth coach for a Malaysian GP clinic marketing executive. You understand Malaysian patients — what they search for, what makes them trust a clinic, what brings them back. Be energetic, creative, specific. Give real content ideas, real campaign angles. End with one thing to do this week.' },
-  clinical:  { name:'My Coach', tag:'Clinical Guide', icon:'🩺', color:'#2563eb',
-               bg:'linear-gradient(135deg,#0a1525,#0f1e35)', border:'rgba(37,99,235,0.35)',
-               desc:'Protocols · Drug refs · Your clinical guide',
-               quickActions:['📋 Clinical Guidelines','💊 Drug Reference','🔍 Differential Dx','📄 Protocol Check'],
-               systemRole:'You are a clinical guide for Malaysian GP clinic clinical staff. Help with clinical reasoning, drug information, MOH guidelines, and patient care. You make nurses and doctors think better, not just give answers. Always clarify the doctor makes final clinical decisions.' },
-  ops:       { name:'My Coach', tag:'Operations Coach', icon:'⚙️', color:'#f59e0b',
-               bg:'linear-gradient(135deg,#1a1200,#231a00)', border:'rgba(245,158,11,0.35)',
-               desc:'Processes · Efficiency · Your ops coach',
-               quickActions:['⚙️ Process Review','📋 SOP Check','📊 Efficiency Tips','🔧 Quick Wins'],
-               systemRole:'You are an operations coach for a Malaysian GP clinic. Help with process improvement, SOPs, staff scheduling, and operational efficiency. Be practical and specific.' },
-  default:   { name:'My Coach', tag:'Daily Assistant', icon:'⚡', color:'#64748b',
-               bg:'linear-gradient(135deg,#0f172a,#1e293b)', border:'rgba(100,116,139,0.35)',
-               desc:'Tasks · Planning · Your daily work coach',
-               quickActions:['📋 My Tasks Today','📅 What Should I Focus On','💡 Help Me Think','⚡ Quick Action'],
-               systemRole:'You are a personal work coach for a clinic staff member. Know their role, understand their daily pressures. Help them prioritise, plan, and get unstuck. Be encouraging, practical, and human. Celebrate small wins.' },
+  ceo: {
+    name:'AI Business Advisor', tag:'Business Advisor', icon:'🧠', color:'#7c3aed',
+    bg:'linear-gradient(135deg,#0f172a,#1e1b4b)', border:'rgba(124,58,237,0.35)',
+    desc:'Strategy · Finance · People · Operations · Full clinic view',
+    quickActions:['📊 How are we doing this month?','👥 Team performance check','💰 Financial health check','⚠️ What needs my attention?'],
+    systemRole:`You are the AI Business Advisor for Medifirst — a Malaysian GP clinic management system. You advise the clinic owner/CEO with full visibility of the clinic.
+
+YOUR ROLE: Strategic advisor with access to all clinic data. You see finance, operations, HR, marketing, and clinical data. Be frank, specific, cite exact numbers. Flag risks early. End every advisory response with ONE clear action item.
+
+KEYWORD SWITCHING (for CEO only):
+- If user message contains finance/revenue/cost/margin/expense/billing → respond as AI Finance Advisor
+- If user message contains HR/staff/leave/payroll/attendance/team → respond as AI HR Advisor  
+- If user message contains queue/operations/roster/appointment/efficiency/SOP → respond as AI Operations Advisor
+- If user message contains marketing/patient growth/referral/social/content/acquisition → respond as AI Marketing Advisor
+- Otherwise → respond as AI Business Advisor with full strategic view
+
+Always cite real numbers from the clinic data provided.`
+  },
+
+  hr: {
+    name:'AI HR Advisor', tag:'HR Advisor', icon:'👥', color:'#0891b2',
+    bg:'linear-gradient(135deg,#0f2030,#0a2535)', border:'rgba(8,145,178,0.35)',
+    desc:'People · Leave · Attendance · HR Compliance',
+    quickActions:['👥 How is the team doing?','⚠️ Any leave issues?','🏛️ Compliance check','💬 Help with staff matter'],
+    systemRole:`You are the AI HR Advisor for Medifirst clinic. You advise the HR executive on all people matters.
+
+YOUR ROLE: People & HR expert with access to staff, leave, attendance, tasks, and team performance data.
+SENSITIVE DATA ACCESS: You can see individual salaries, EPF, and SOCSO details.
+RESTRICTED: Do not discuss individual salary/EPF/SOCSO details with non-HR staff unless asked by CEO.
+
+EXPERTISE: Malaysian Employment Act 1955, EPF Act, SOCSO Act, EIS, HRDCorp, leave entitlements, disciplinary procedures, Malaysian HR best practices.
+
+Be warm but professional. Celebrate wins. Flag risks early. Always end with one practical HR action.`
+  },
+
+  finance: {
+    name:'AI Finance Advisor', tag:'Finance Advisor', icon:'💰', color:'#059669',
+    bg:'linear-gradient(135deg,#0a1f15,#0f2a1c)', border:'rgba(5,150,105,0.35)',
+    desc:'Revenue · Expenses · Margins · Cash Flow',
+    quickActions:['📊 This month\'s P&L','📈 Revenue trend','⚠️ Cost concerns','💡 Where to cut costs?'],
+    systemRole:`You are the AI Finance Advisor for Medifirst clinic. You advise the finance executive on all financial matters.
+
+YOUR ROLE: Financial analyst with access to billing, expenses, drug margins, payroll costs, and revenue data.
+SENSITIVE DATA ACCESS: You can see individual salaries, EPF, SOCSO, and all expense details.
+
+EXPERTISE: Malaysian business finance, SST, EPF employer contributions (13%), SOCSO (1.75%), EIS (0.4%), HRDCorp (1%), clinic financial benchmarks (staff cost target 28-30% of revenue, drug margin target >40%).
+
+Be precise. Always cite exact RM figures. Flag cash flow risks. Suggest concrete optimisations. End with one financial action.`
+  },
+
+  marketing: {
+    name:'AI Marketing Advisor', tag:'Marketing Advisor', icon:'📣', color:'#db2777',
+    bg:'linear-gradient(135deg,#1a0a15,#250f1e)', border:'rgba(219,39,119,0.35)',
+    desc:'Patient Growth · Referrals · Content · Acquisition',
+    quickActions:['📣 How to grow faster?','📱 Content plan this month','🎯 Campaign idea','📊 Patient retention tips'],
+    systemRole:`You are the AI Marketing Advisor for Medifirst clinic. You advise on patient growth, retention and marketing.
+
+YOUR ROLE: Growth advisor with access to patient acquisition data, referral sources, visit patterns, and revenue by service.
+
+EXPERTISE: Malaysian healthcare marketing, Google My Business, social media for clinics, patient retention strategies, panel acquisition, referral network building, WhatsApp marketing for Malaysian clinics.
+
+Be energetic and creative. Understand Malaysian patients — what they search for, what builds trust. Give specific content ideas and campaign angles. End with one thing to do this week.`
+  },
+
+  clinical: {
+    name:'AI Clinical Advisor', tag:'Clinical Advisor', icon:'🩺', color:'#2563eb',
+    bg:'linear-gradient(135deg,#0a1525,#0f1e35)', border:'rgba(37,99,235,0.35)',
+    desc:'Clinical Protocols · Drug Reference · MOH Guidelines',
+    quickActions:['📋 Clinical Guidelines','💊 Drug Reference','🔍 Differential Dx','📄 Protocol Check'],
+    systemRole:`You are the AI Clinical Advisor for Medifirst clinic. You support clinical staff with medical knowledge.
+
+YOUR ROLE: Clinical knowledge resource for Malaysian GP clinic. Access to patient visit patterns and drug inventory.
+
+EXPERTISE: Malaysian MOH clinical practice guidelines, drug dosing (adult and paediatric), common GP conditions, referral criteria, drug interactions, formulary management.
+
+IMPORTANT: Always clarify that the doctor makes final clinical decisions. You provide information, not clinical decisions. Cite MOH guidelines or evidence when relevant.`
+  },
+
+  ops: {
+    name:'AI Operations Advisor', tag:'Operations Advisor', icon:'⚙️', color:'#f59e0b',
+    bg:'linear-gradient(135deg,#1a1200,#231a00)', border:'rgba(245,158,11,0.35)',
+    desc:'Queue · Roster · Appointments · Efficiency',
+    quickActions:['⚙️ Queue efficiency today','📋 SOP Review','📊 Bottleneck check','🔧 Quick process wins'],
+    systemRole:`You are the AI Operations Advisor for Medifirst clinic. You advise on clinic operations and efficiency.
+
+YOUR ROLE: Operations analyst with access to queue data, appointment patterns, staff roster, and workflow data.
+Also has access to: sales revenue, patient volume, staff list, and leave schedules for planning purposes.
+
+EXPERTISE: Clinic workflow optimisation, queue management, appointment scheduling, staff rostering, SOP design, patient experience improvement, Malaysian clinic operations best practices.
+
+Be practical and specific. Focus on things that can be done this week. End with one process improvement action.`
+  },
+
+  default: {
+    name:'AI Work Advisor', tag:'Work Advisor', icon:'⚡', color:'#64748b',
+    bg:'linear-gradient(135deg,#0f172a,#1e293b)', border:'rgba(100,116,139,0.35)',
+    desc:'Tasks · Planning · Daily Work',
+    quickActions:['📋 My Tasks Today','📅 What to focus on','💡 Help me think','⚡ Quick action'],
+    systemRole:`You are the AI Work Advisor for a Medifirst clinic staff member. You help with daily work management.
+
+YOUR ROLE: Personal work assistant. Access to the staff member's own tasks, meetings, notes, and schedule only.
+
+Be encouraging, practical, and human. Help prioritise, plan, and get unstuck. Celebrate small wins. Keep responses concise and actionable.`
+  },
 };
 
 function _getMyAdvisorRole() {
@@ -26859,13 +27236,14 @@ function _getMyAdvisorRole() {
   const s = STAFF_LIST.find(x=>x.username===me);
   const dept = (s?.dept||'').toLowerCase();
   const role = (s?.role||'').toLowerCase();
-  if (dept.includes('hr')    || role.includes('hr'))              return 'hr';
-  if (dept.includes('finance')|| role.includes('finance')||role.includes('account')) return 'finance';
-  if (dept.includes('market') || role.includes('market')||role.includes('creative')) return 'marketing';
-  if (dept.includes('clinic') || role.includes('doctor')||role.includes('nurse')||role.includes('medical')) return 'clinical';
+  if (dept.includes('hr')      || role.includes('hr'))                              return 'hr';
+  if (dept.includes('finance') || role.includes('finance') || role.includes('account')) return 'finance';
+  if (dept.includes('market')  || role.includes('market')  || role.includes('creative')) return 'marketing';
+  if (dept.includes('clinic')  || role.includes('doctor')  || role.includes('nurse') || role.includes('medical')) return 'clinical';
+  if (dept.includes('ops')     || dept.includes('operation')|| role.includes('ops')  || role.includes('operation')) return 'ops';
+  if (typeof isManager==='function' && isManager()) return 'ceo'; // managers get CEO view
   return 'default';
 }
-
 
 function _buildMyAdvisorContext(roleKey) {
   const me    = typeof getMyUsername==='function' ? getMyUsername() : 'ceo';
@@ -26874,38 +27252,101 @@ function _buildMyAdvisorContext(roleKey) {
   const pending = myTasks.filter(t=>t.status!=='completed'&&t.status!=='cancelled').length;
   const overdue = myTasks.filter(t=>t.due&&t.due<today&&t.status!=='completed').length;
   const s = STAFF_LIST.find(x=>x.username===me)||{};
+  const isCeoRole = roleKey==='ceo';
 
   let ctx = `Staff: ${s.name||'CEO'} (${s.role||'Owner'}, ${s.dept||'Management'})
-Today: ${today} | Tasks: ${pending} pending, ${overdue} overdue
-A.P.I Score: ${s.eff||0}%`;
+Today: ${today} | My Tasks: ${pending} pending, ${overdue} overdue`;
 
-  if (roleKey==='ceo' || roleKey==='hr') {
-    ctx += `
-Team size: ${STAFF_LIST.length} staff`;
-    ctx += `
-Avg team API: ${STAFF_LIST.length?Math.round(STAFF_LIST.reduce((a,s)=>a+(s.eff||0),0)/STAFF_LIST.length):0}%`;
-    const leave = (typeof _mimsLeave==='function'?_mimsLeave():[]).filter(l=>l.status==='pending').length;
-    ctx += `
-Pending leave approvals: ${leave}`;
+  // All advisors: staff list, sales, leave, projects
+  const staffList = STAFF_LIST.map(st=>`${st.name} (${st.role||'-'}, ${st.dept||'-'})`).join(', ');
+  ctx += `\n\nSTAFF (${STAFF_LIST.length}): ${staffList}`;
+
+  try {
+    const bills = JSON.parse(localStorage.getItem('mims_billing')||'[]');
+    const mn = today.slice(0,7);
+    const mb = bills.filter(b=>(b.dateISO||b.date||'').startsWith(mn));
+    const mr = mb.reduce((s,b)=>s+parseFloat(b.amount||0),0);
+    ctx += `\n\nSALES: RM ${mr.toFixed(2)} this month (${mb.length} invoices)`;
+  } catch(e){}
+
+  const lv = (typeof LEAVE_REQUESTS!=='undefined'?LEAVE_REQUESTS:[])
+    .filter(r=>r.status==='approved'&&(r.end||r.endDate||'')>=today)
+    .map(r=>{ const p=STAFF_LIST.find(x=>x.username===r.username); return `${p?.name||r.username}: ${r.type} to ${r.end||r.endDate||'?'}`; });
+  if (lv.length) ctx += `\n\nAPPROVED LEAVE: ${lv.join(' | ')}`;
+
+  const projs = (typeof PROJECTS_DATA!=='undefined'?PROJECTS_DATA:[]).filter(p=>p.status==='ongoing');
+  if (projs.length) ctx += `\n\nACTIVE PROJECTS: ${projs.map(p=>p.name).join(', ')}`;
+
+  // HR + CEO: pending leave, team stats
+  if (isCeoRole || roleKey==='hr') {
+    const pl = (typeof LEAVE_REQUESTS!=='undefined'?LEAVE_REQUESTS:[]).filter(r=>r.status==='pending');
+    if (pl.length) ctx += `\n\nPENDING LEAVE (${pl.length}): ${pl.map(r=>{ const p=STAFF_LIST.find(x=>x.username===r.username); return `${p?.name||r.username} ${r.type} ${r.start||'?'}`; }).join(' | ')}`;
   }
-  if (roleKey==='ceo' || roleKey==='finance') {
-    const payStaff = (typeof _mimsPayStaff==='function'?_mimsPayStaff():[]);
-    const totalPay = payStaff.reduce((s,p)=>s+(p.basicSalary||0),0);
-    if (totalPay) ctx += `
-Monthly payroll: RM ${totalPay.toLocaleString()}`;
+
+  // Finance + HR + CEO: salary data (confidential)
+  if (isCeoRole || roleKey==='finance' || roleKey==='hr') {
+    try {
+      const ps = (typeof _mimsPayStaff==='function'?_mimsPayStaff():[]);
+      if (ps.length) {
+        const tp = ps.reduce((s,p)=>s+(p.basicSalary||0),0);
+        ctx += `\n\nPAYROLL (CONFIDENTIAL): Total RM ${tp.toLocaleString()} | ${ps.map(p=>`${p.name} RM${(p.basicSalary||0).toLocaleString()}`).join(', ')}`;
+      }
+    } catch(e){}
   }
-  if (roleKey==='ceo') {
-    const projs = (PROJECTS_DATA||[]).filter(p=>p.status==='ongoing').length;
-    ctx += `
-Active projects: ${projs}`;
-    const snap = (() => { try { const h=JSON.parse(localStorage.getItem('mf_monthly_history')||'[]'); return h[0]||null; } catch(e){return null;} })();
-    if (snap) ctx += `
-Last snapshot: Revenue RM ${snap.revenue||0}, Net RM ${snap.net||0}`;
+
+  // Finance + CEO: expense data
+  if (isCeoRole || roleKey==='finance') {
+    try {
+      const recs = JSON.parse(localStorage.getItem('cms_finance_receipts')||'[]').filter(r=>r.confirmed);
+      const me2 = today.slice(0,7);
+      const mexp = recs.filter(r=>(r.date||'').startsWith(me2));
+      const texp = mexp.reduce((s,r)=>s+(r.amount||0),0);
+      const bycat = {};
+      mexp.forEach(r=>{bycat[r.category]=(bycat[r.category]||0)+(r.amount||0);});
+      ctx += `\n\nEXPENSES (CONFIDENTIAL): RM ${texp.toFixed(2)} | ${Object.entries(bycat).map(([k,v])=>`${k}: RM${v.toFixed(0)}`).join(', ')}`;
+    } catch(e){}
   }
+
   return ctx;
 }
 
 // Generic placeholder for other dept modules (to be built next)
+
+// ── Export AI conversation as Markdown for Claude Project ─────────────────
+function exportAdvisorSummary() {
+  const me = getMyUsername ? getMyUsername() : 'ceo';
+  const role = _getMyAdvisorRole();
+  const cfg = AI_ADVISOR_ROLES[role] || AI_ADVISOR_ROLES.default;
+  const today = new Date().toLocaleDateString('en-MY',{day:'2-digit',month:'long',year:'numeric'});
+  const now   = new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit'});
+
+  const msgs = (CHAT_MESSAGES||[])
+    .filter(m => m.channel==='direct' && (m.from===me||m.from==='medifirst_ai') && (m.to==='medifirst_ai'||m.to===me))
+    .slice(-20);
+
+  if (!msgs.length) { showToast('No AI conversation to export yet','warn'); return; }
+
+  let md = `# Medifirst — ${cfg.name} Summary\n**Date:** ${today} at ${now}\n**Advisor:** ${cfg.icon} ${cfg.name}\n\n---\n\n## Conversation\n\n`;
+
+  msgs.forEach(m => {
+    const isUser = m.from !== 'medifirst_ai';
+    const speaker = isUser ? `**${currentUser?.name||'You'}**` : `**${cfg.icon} ${cfg.name}**`;
+    const text = (m.text||'').replace(/<[^>]+>/g,'').trim();
+    if (text) md += `### ${speaker}\n${text}\n\n`;
+  });
+
+  md += `---\n\n## Action Items\n- [ ] \n- [ ] \n\n---\n*Export to Medifirst C-Suite Claude Project as knowledge file*\n*Generated: ${today}*\n`;
+
+  const blob = new Blob([md], {type:'text/markdown'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `Medifirst_${cfg.name.replace(/\s+/g,'_')}_${today.replace(/\s+/g,'_')}.md`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('📄 Exported — upload to Claude Project for memory', 'success', 4000);
+}
+
 // Generic placeholder for other dept modules (to be built next)
 function renderStaffDash() {
   const pg = document.getElementById('page-staff-dash');
@@ -27375,7 +27816,7 @@ function renderAdminModule() {
           <div style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0;"></div>
           <div style="flex:1;min-width:0;">
             <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;">${t.name||'—'}</div>
-            <div style="font-size:10px;color:var(--grey-400);">→ ${assigneeName} · Due <span style="color:${isOverdue?'#ef4444':'inherit'};font-weight:${isOverdue?700:400};">${t.due||'—'}</span></div>
+            <div style="font-size:10px;color:var(--grey-400);">→ ${assigneeName} · Due ${_smartDate(t.due)}</div>
           </div>
           <span style="font-size:10px;background:${col}22;color:${col};padding:2px 8px;border-radius:20px;font-weight:700;flex-shrink:0;">${t.status||'—'}</span>
         </div>`;
@@ -28012,7 +28453,7 @@ function openStageTaskView(projId, stageId) {
                     ${picPerson2 ? `<div style="font-size:11px;color:var(--grey-400);margin-top:2px;">👤 ${picPerson2.name||t.pic}</div>` : ''}
                     ${t.linkedOkrText ? `<div style="font-size:10px;color:#7c3aed;margin-top:2px;">🎯 ${t.linkedOkrText}</div>` : ''}
                   </div>
-                  ${t.due ? `<div style="text-align:right;flex-shrink:0;"><div style="font-size:11px;font-weight:700;color:${duec};">${new Date(t.due+'T00:00').toLocaleDateString('en-MY',{day:'numeric',month:'short'})}</div><div style="font-size:10px;color:var(--grey-400);">${df!==null&&df<0?'Overdue':df!==null&&df<=7?'Due soon':''}</div></div>` : ''}
+                  ${t.due ? `<div style="text-align:right;flex-shrink:0;"><div style="font-size:11px;font-weight:700;color:${duec};">${_smartDate(t.due,{raw:true})}</div><div style="font-size:10px;color:var(--grey-400);"></div></div>` : ''}
                   <span style="color:var(--grey-300);font-size:14px;flex-shrink:0;">›</span>
                 </div>`;
             }).join('')}
@@ -34618,6 +35059,7 @@ function openTaskDetailForUser(taskId, username) {
 }
 
 function openTaskDetail(taskId) {
+  _taskDetailCurrentId = taskId;
   // Check if a project task proxy is being passed directly (no MY_TASKS injection)
   let t;
   if (_projTaskOverride && _projTaskOverride.id === taskId) {
@@ -34685,7 +35127,7 @@ function openTaskDetail(taskId) {
       const pP = [{username:'ceo',name:'CEO / Dr. Owner'},...STAFF_LIST].find(p=>p.username===st.pic);
       const isDel = st.pic && st.pic!==me;
       return `<div style="display:flex;align-items:center;gap:10px;background:white;padding:10px 14px;border-bottom:1px solid #f1f5f9;">
-        <div onclick="toggleSubtaskDone('${t.id}','${st.id}');closeModal('modal-task-detail');openTaskDetail('${t.id}')"
+        <div onclick="toggleSubtaskDoneInPlace('${t.id}','${st.id}')"
           style="width:18px;height:18px;border-radius:5px;border:2px solid ${st.status==='completed'?'#16a34a':'#cbd5e1'};background:${st.status==='completed'?'#16a34a':'white'};display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;">
           ${st.status==='completed'?'<span style="color:white;font-size:10px;font-weight:900;">✓</span>':''}
         </div>
@@ -34693,71 +35135,114 @@ function openTaskDetail(taskId) {
           <div style="font-size:13px;font-weight:600;${st.status==='completed'?'text-decoration:line-through;color:#94a3b8;':'color:#1e293b;'}">${st.name}</div>
           
         </div>
-        <button onclick="deleteSubtask('${t.id}','${st.id}');closeModal('modal-task-detail');openTaskDetail('${t.id}')" style="background:none;border:none;cursor:pointer;color:#e2e8f0;font-size:13px;padding:2px 5px;" onmouseover="this.style.color='#CC2229'" onmouseout="this.style.color='#e2e8f0'">✕</button>
+        <button onclick="deleteSubtaskInPlace('${t.id}','${st.id}')" style="background:none;border:none;cursor:pointer;color:#e2e8f0;font-size:13px;padding:2px 5px;" onmouseover="this.style.color='#CC2229'" onmouseout="this.style.color='#e2e8f0'">✕</button>
       </div>`;
     }).join('') : '';
 
   // Body HTML
-  document.getElementById('task-detail-body').innerHTML = `
-    ${alertBanner}
+  // Fix HR·HR: only show category if different from project
+  const showCat = t.cat && t.cat !== t.project;
 
-    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px;">
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
-        <div><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">PIC</div><div style="font-size:13px;font-weight:700;color:#1e293b;">${picName}</div></div>
-        <div><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Project</div><div style="font-size:13px;font-weight:700;color:#1e293b;">${t.project||'--'}</div></div>
-        <div><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Category</div><div style="font-size:13px;font-weight:700;color:#1e293b;">${t.cat||'--'}</div></div>
+  // Reusable blocks for normal + expanded layout
+  const _infoBlock = `
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 14px;display:flex;flex-direction:column;gap:8px;">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:12px;font-weight:700;color:#1e293b;">👤 ${picName}</span>
+        ${t.project?`<span style="color:#cbd5e1;">·</span><span style="font-size:12px;color:#64748b;">📁 ${t.project}</span>`:''}
+        ${showCat?`<span style="color:#cbd5e1;">·</span><span style="font-size:12px;color:#64748b;">${t.cat}</span>`:''}
+        ${assignedByName?`<span style="color:#cbd5e1;">·</span><span style="font-size:11px;font-weight:700;background:#fffbeb;color:#92400e;padding:2px 7px;border-radius:6px;">From ${assignedByName}</span>`:''}
       </div>
-      <div style="border-top:1px solid #e2e8f0;"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
-        <div><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Start Date</div><div style="font-size:13px;font-weight:700;color:#1e293b;">${startFmt}</div></div>
-        <div><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Due Date</div>
-          <div style="font-size:13px;font-weight:700;color:${!isCompleted&&diff!==null&&diff<0?'#CC2229':!isCompleted&&diff!==null&&diff<=3?'#d97706':'#1e293b'};">${dueFmt}${!isCompleted&&diff!==null?`<span style="font-size:10px;font-weight:600;display:block;margin-top:2px;color:${diff<0?'#CC2229':diff<=3?'#d97706':'#94a3b8'};">${diff<0?'⚠ '+Math.abs(diff)+'d overdue':diff===0?'Due today':diff+'d left'}</span>`:''}</div>
-        </div>
-        <div><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Est. Hours</div>
-          <div style="font-size:13px;font-weight:700;color:#1e293b;">${t.est?t.est+'h':'--'}${t.est&&diff!==null&&diff>0&&!isCompleted?`<span style="font-size:10px;color:#94a3b8;display:block;margin-top:2px;">~${(t.est/diff).toFixed(1)}h/day pace</span>`:''}</div>
-        </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:11px;color:#94a3b8;">${startFmt} →</span>
+        <span style="font-size:12px;font-weight:700;color:${!isCompleted&&diff!==null&&diff<0?'#CC2229':!isCompleted&&diff!==null&&diff<=3?'#d97706':'#334155'};">${_smartDate(t.due,{raw:true})}</span>
+        ${t.urgency==='urgent'?'<span style="color:#cbd5e1;">·</span><span style="font-size:11px;font-weight:700;color:#CC2229;">🔴 Urgent</span>':''}
+        ${t.importance==='important'?'<span style="color:#cbd5e1;">·</span><span style="font-size:11px;font-weight:700;color:#d97706;">⭐ Important</span>':''}
+        ${t.est?`<span style="color:#cbd5e1;">·</span><span style="font-size:11px;color:#64748b;">⏱ ${t.est}h</span>`:''}
       </div>
-      <div style="border-top:1px solid #e2e8f0;padding-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
-        <div><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Status</div>
-          <select onchange="applyTaskStatusUpdate('${t.id}',this.value);closeModal('modal-task-detail');openTaskDetail('${t.id}')" style="font-size:12px;font-weight:700;padding:5px 8px;border:2px solid ${sCol};border-radius:8px;background:${sCol}15;color:${sCol};cursor:pointer;width:100%;">
-            ${TASK_STATUS_META.map(s=>`<option value="${s.val}" ${(t.status===s.val||(s.val==='p50'&&t.status==='ongoing'))?'selected':''}>${s.label}</option>`).join('')}
-          </select>
-        </div>
-        <div><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Urgency</div><div style="font-size:13px;font-weight:700;">${t.urgency==='urgent'?'<span style="color:#CC2229;">🔴 Urgent</span>':'<span style="color:#94a3b8;">⚪ Not Urgent</span>'}</div></div>
-        <div><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Importance</div><div style="font-size:13px;font-weight:700;">${t.importance==='important'?'<span style="color:#d97706;">⭐ Important</span>':'<span style="color:#94a3b8;">○ Not Important</span>'}</div></div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">Status</span>
+        <select onchange="applyTaskStatusUpdate('${t.id}',this.value);closeModal('modal-task-detail');openTaskDetail('${t.id}')" style="font-size:12px;font-weight:700;padding:4px 8px;border:1.5px solid ${sCol};border-radius:8px;background:${sCol}15;color:${sCol};cursor:pointer;">
+          ${TASK_STATUS_META.map(s=>`<option value="${s.val}" ${(t.status===s.val||(s.val==='p50'&&t.status==='ongoing'))?'selected':''}>${s.label}</option>`).join('')}
+        </select>
       </div>
-    </div>
+    </div>`;
 
-    ${t.notes ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;"><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Notes</div><div style="font-size:13px;color:#334155;line-height:1.65;background:white;border:1px solid #e2e8f0;border-radius:8px;padding:12px;">${t.notes}</div></div>` : ''}
+  const _notesBlock = t.notes ? `
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 14px;">
+      <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Notes</div>
+      <div style="font-size:13px;color:#334155;line-height:1.6;">${t.notes}</div>
+    </div>` : '';
 
-    <div id="task-detail-checklist-box-${t.id}" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+  const _recurBlock = t.recur ? `
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <div><div style="font-size:11px;font-weight:800;color:#15803d;margin-bottom:2px;">🔁 Recurring</div>
+      <div style="font-size:11px;color:#166534;">${(()=>{const r=t.recur;let fl='';if(r.freq==='daily')fl=r.interval===1?'Daily':`Every ${r.interval} days`;else if(r.freq==='weekly')fl=r.interval===1?'Weekly':`Every ${r.interval} weeks`;else if(r.freq==='monthly')fl=r.interval===1?'Monthly':`Every ${r.interval} months`;else if(r.freq==='custom')fl=r.customDays?.length?`On the ${r.customDays.join(', ')} of each month`:'Custom';let el='No end date';if(r.endType==='date'&&r.endDate)el='Until '+new Date(r.endDate+'T00:00').toLocaleDateString('en-MY',{day:'numeric',month:'short',year:'numeric'});if(r.endType==='count')el=`${r.remaining||r.endCount} occurrence(s) left`;return fl+' · '+el;})()}</div></div>
+      <button onclick="cancelTaskRecurrence('${t.id}');closeModal('modal-task-detail')" style="background:none;border:1px solid #16a34a;color:#16a34a;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap;">✕ Cancel</button>
+    </div>` : '';
+
+  const _checklistBlock = `
+    <div id="task-detail-checklist-box-${t.id}" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;overflow:visible;">
       <div style="padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">
         <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">☑ Checklist${prog?' — '+prog.done+'/'+prog.total+' done':''}</div>
         <button onclick="addSubtaskFromDetail('${t.id}')" style="background:#e8f6fd;color:var(--blue);border:1px solid #93c5fd;border-radius:7px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;">+ Add</button>
       </div>
-      ${prog?`<div style="padding:0 14px 10px;">${progHtml}</div>`:''}
-      ${subsHtml ? `<div style="border-top:1px solid #e2e8f0;">${subsHtml}</div>` : ''}
-    </div>
+      ${prog?`<div style="padding:0 14px 8px;">${progHtml}</div>`:''}
+      ${subsHtml?`<div style="border-top:1px solid #e2e8f0;">${subsHtml}</div>`:'<div style="padding:10px 14px;font-size:12px;color:#94a3b8;">No checklist items yet.</div>'}
+    </div>`;
 
-    ${t.links&&t.links.length ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;"><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Links & Attachments</div><div style="display:flex;flex-wrap:wrap;gap:7px;">${t.links.map(l=>renderGoogleLink(l)).join('')}</div></div>` : ''}
-
-    ${t.recur ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;"><div><div style="font-size:11px;font-weight:800;color:#15803d;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;">🔁 Recurring Task</div><div style="font-size:12px;color:#166534;">${(()=>{const r=t.recur;let fl='';if(r.freq==='daily')fl=r.interval===1?'Daily':`Every ${r.interval} days`;else if(r.freq==='weekly')fl=r.interval===1?'Weekly':`Every ${r.interval} weeks`;else if(r.freq==='monthly')fl=r.interval===1?'Monthly':`Every ${r.interval} months`;else if(r.freq==='custom')fl=r.customDays?.length?`On the ${r.customDays.join(', ')} of each month`:'Custom';let el='No end date';if(r.endType==='date'&&r.endDate)el='Until '+new Date(r.endDate+'T00:00').toLocaleDateString('en-MY',{day:'numeric',month:'short',year:'numeric'});if(r.endType==='count')el=`${r.remaining||r.endCount} occurrence(s) left`;return fl+' · '+el;})()} </div></div><button onclick="cancelTaskRecurrence('${t.id}');closeModal('modal-task-detail')" style="background:none;border:1px solid #16a34a;color:#16a34a;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:700;flex-shrink:0;white-space:nowrap;">✕ Cancel</button></div>` : ''}
-
-    <!-- === WORK LOG === -->
-    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;margin-bottom:8px;">
-      <!-- Header -->
-      <div style="padding:12px 16px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;">
+  const _worklogBlock = `
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+      <div style="padding:10px 14px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;">
         <div>
-          <div style="font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.8px;">📋 Work Log</div>
-          <div style="font-size:11px;color:#94a3b8;margin-top:1px;">${(t.workLog||[]).length} entr${(t.workLog||[]).length===1?'y':'ies'} · Tap to add your work session</div>
+          <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">📋 Work Log</div>
+          <div style="font-size:11px;color:#94a3b8;">${(t.workLog||[]).length} entr${(t.workLog||[]).length===1?'y':'ies'}</div>
         </div>
-        <button onclick="openWorkLogEntry('${t.id}')" style="background:var(--blue);color:white;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;">+ Log Work</button>
+        <button onclick="openWorkLogEntry('${t.id}')" style="background:var(--blue);color:white;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;">+ Log Work</button>
       </div>
-      <!-- Log entries -->
-      <div id="work-log-list-${t.id}" style="overflow-y:visible;">
-        ${renderWorkLogEntries(t)}
+      <div id="work-log-list-${t.id}">${renderWorkLogEntries(t)}</div>
+    </div>`;
+
+  const _linksBlock = `
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">🔗 Files & Links</div>
+        <button onclick="addTaskLinkFromDetail('${t.id}')" style="background:#e8f6fd;color:var(--blue);border:1px solid #93c5fd;border-radius:7px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;">+ Add Link</button>
       </div>
-    </div>
+      ${t.links&&t.links.length
+        ? `<div style="display:flex;flex-wrap:wrap;gap:6px;">${t.links.map(l=>renderGoogleLink(l)).join('')}</div>`
+        : '<div style="font-size:12px;color:#94a3b8;">No links yet — paste a URL or Google Drive link.</div>'
+      }
+    </div>`;
+
+  // Normal view: single column
+  // Expanded view: two-column (left: info+notes+recur+links, right: checklist+worklog)
+  const isExpNow = _taskDetailExpanded;
+
+  document.getElementById('task-detail-body').innerHTML = `
+    ${alertBanner}
+    ${isExpNow ? `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          ${_infoBlock}
+          ${_notesBlock}
+          ${_recurBlock}
+          ${_linksBlock}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;max-height:calc(95vh - 180px);overflow-y:auto;padding-right:4px;">
+          ${_checklistBlock}
+          ${_worklogBlock}
+        </div>
+      </div>
+    ` : `
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        ${_infoBlock}
+        ${_notesBlock}
+        ${_recurBlock}
+        ${_checklistBlock}
+        ${_linksBlock}
+        ${_worklogBlock}
+      </div>
+    `}
   `;
 
   document.getElementById('task-detail-footer').innerHTML = `
@@ -34768,14 +35253,24 @@ function openTaskDetail(taskId) {
     <button class="btn btn-primary" style="font-size:13px;padding:8px 18px;font-weight:800;" onclick="applyTaskStatusUpdate('${t.id}','${t.status==='completed'?'not-started':'completed'}');closeModal('modal-task-detail')">${t.status==='completed'?'&#8629; Mark Not Done':'&#10003; Mark Complete'}</button>
   `;
 
-  _taskDetailExpanded = false;
+  // Only reset expanded state if opening a NEW task (not re-rendering for expand toggle)
+  const _isRerender = _taskDetailCurrentId === taskId && document.getElementById('modal-task-detail')?.classList.contains('open');
+  if (!_isRerender) _taskDetailExpanded = false;
+
   const _box = document.getElementById('task-detail-box');
-  if (_box) { _box.style.width='min(700px,96vw)'; _box.style.maxHeight='96vh'; }
-  // Scroll body to top each time task detail opens
-  const _detailBody = document.getElementById('task-detail-body');
-  if (_detailBody) _detailBody.scrollTop = 0;
+  const _isExp = _taskDetailExpanded;
+  if (_box) {
+    _box.style.width    = _isExp ? '92vw'            : 'min(700px,96vw)';
+    _box.style.maxHeight= _isExp ? '95vh'            : '96vh';
+  }
   const _btn = document.getElementById('task-detail-expand-btn');
-  if (_btn) { _btn.textContent='⛶ Expand'; _btn.title='Expand'; }
+  if (_btn) { _btn.textContent = _isExp ? '⛶ Collapse' : '⛶ Expand'; _btn.title = _isExp ? 'Collapse' : 'Expand'; }
+
+  // Scroll body to top only on fresh open
+  if (!_isRerender) {
+    const _detailBody = document.getElementById('task-detail-body');
+    if (_detailBody) _detailBody.scrollTop = 0;
+  }
 
   const _tdOverlay = document.getElementById('modal-task-detail');
   if (_tdOverlay) { _tdOverlay.style.zIndex = '10002'; _tdOverlay.classList.add('open'); }
@@ -36082,7 +36577,7 @@ function _renderProjTabBody(id) {
       const sBg  = t.status==='completed'?'#f0fdf4':['kickoff','p25','p50','p75','ongoing'].includes(t.status)?'#fffbeb':'var(--grey-50)';
       const sIcon= t.status==='completed'?'&#x2705;':['kickoff','p25','p50','p75','ongoing'].includes(t.status)?'&#x1F504;':'&#x25CB;';
       const pic2 = allPeople.find(a=>a.username===(t.pic||''));
-      const dueDateHtml = t.due ? '<div style="text-align:right;flex-shrink:0;"><div style="font-size:11px;font-weight:700;color:'+duec+';">'+new Date(t.due+'T00:00').toLocaleDateString('en-MY',{day:'2-digit',month:'short',year:'numeric'})+'</div></div>' : '';
+      const dueDateHtml = t.due ? '<div style="text-align:right;flex-shrink:0;"><div style="font-size:11px;font-weight:700;color:'+duec+';">'+_smartDate(t.due,{raw:true})+'</div></div>' : '';
       const picHtml = pic2 ? '<div style="font-size:11px;color:var(--grey-400);margin-top:1px;">&#x1F464; '+pic2.name+'</div>' : '';
       const nameStyle = t.status==='completed' ? 'font-size:13px;font-weight:600;text-decoration:line-through;color:var(--grey-400);' : 'font-size:13px;font-weight:600;color:var(--grey-800);';
       return '<div style="background:'+sBg+';border:1px solid var(--grey-200);border-radius:10px;padding:11px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="openProjTaskEdit('+id+',&apos;'+t.id+'&apos;)">'
