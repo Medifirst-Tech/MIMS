@@ -367,9 +367,9 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#e0f2fe;color:var(--g
   overflow:hidden;
 }
 .cal-day:hover{background:var(--blue-light);border-color:var(--blue-mid);}
-.cal-day.today{background:var(--blue-light);border-color:var(--blue);color:var(--blue-deep);}
+.cal-day.today{background:#eff6ff;border:2px solid #2563eb;color:#0d5c80;}
 .cal-day.today .cal-day-num{
-  background:var(--blue);color:white;border-radius:50%;
+  background:#2563eb;color:white;border-radius:50%;
   width:22px;height:22px;display:flex;align-items:center;justify-content:center;
   font-size:11px;font-weight:700;
 }
@@ -3452,7 +3452,8 @@ async function _claudeFetch(body) {
       <button class="modal-close" onclick="closeModal('modal-new-meeting')">✕</button>
     </div>
     <div class="modal-body">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <style>#modal-new-meeting .form-group{margin-bottom:0;} #modal-new-meeting .form-label{margin-bottom:4px;}</style>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;">
         <div class="form-group" style="grid-column:1/-1;">
           <label class="form-label">Meeting Title <span style="color:var(--red)">*</span></label>
           <input class="form-input" id="nm-title" placeholder="e.g. Q2 Strategy Planning"/>
@@ -3730,6 +3731,7 @@ async function _claudeFetch(body) {
       <div class="rte-editor rte-editor-full" id="nve-content" contenteditable="true" placeholder="Write your note here…" style="border-radius:0 0 0 0;flex:1;max-height:45vh;"></div>
     </div>
     <div class="modal-footer" id="note-view-footer" style="flex-shrink:0;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-danger" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;" onclick="if(window._viewingNoteId) deleteNote(window._viewingNoteId);">🗑 Delete</button>
       <button id="nve-save-btn" class="btn btn-primary" style="display:none;" onclick="toggleNoteEdit()">&#128190; Save</button>
       <button class="btn btn-secondary" onclick="closeModal('modal-note-view')">Close</button>
     </div>
@@ -4130,7 +4132,6 @@ async function _claudeFetch(body) {
           <label class="form-label">Reports To</label>
           <select class="form-input" id="new-user-reports">
             <option value="ceo">CEO / Owner</option>
-            ${(typeof STAFF_LIST!=='undefined'?STAFF_LIST:[]).map(s=>`<option value="${s.username}">${s.name}</option>`).join('')}
           </select>
         </div>
       </div>
@@ -6336,6 +6337,7 @@ async function runWorkflowWithChatCallback(wfId) {
         assignedBy: 'workflow_engine',
         wfSource: wfId, wfNode: node.id
       });
+      if (typeof _saveMyTasks === 'function') _saveMyTasks();
       createdActions.tasks.push(node.label);
 
       // Post notification
@@ -6540,6 +6542,7 @@ async function runWorkflowSimulation(wfId) {
           notes:(node.config&&node.config.desc)||'', links:[], assignedBy:'workflow_engine',
           wfSource:wfId, wfNode:node.id
         });
+        if (typeof _saveMyTasks === 'function') _saveMyTasks();
         createdTasks.push(message||node.label);
         logEntry('  Task created: '+(message||node.label), 'success', null);
       } else {
@@ -8261,6 +8264,13 @@ function openAddStaffModal() {
     deptSel.innerHTML = '<option value="">— Select Department —</option>' +
       _getActiveDepts().map(d=>`<option value="${d}">${d}</option>`).join('');
   }
+  // Populate dynamic Reports To options (CEO + all current staff)
+  const reportsSel = document.getElementById('new-user-reports');
+  if (reportsSel) {
+    const _staffOpts = (typeof STAFF_LIST !== 'undefined' ? STAFF_LIST : [])
+      .map(s => `<option value="${s.username}">${s.name}</option>`).join('');
+    reportsSel.innerHTML = '<option value="ceo">CEO / Owner</option>' + _staffOpts;
+  }
   // Reset tier selector to 'member' (default)
   selectTierOption('member');
   renderJdItemsList();
@@ -9680,10 +9690,475 @@ function renderCeoDash() {
 
     </div>
 
+    <!-- ══ TEAM ACTIVITY — CEO oversight of staff tasks/projects/attendance ══ -->
+    <div id="ceo-team-activity-wrap" style="margin-top:20px;"></div>
+
     <!-- ══ MY COACH — accessible via 💬 chat button (Medifirst AI DM) ══ -->
 
   `;
+
+  // Render Team Activity card (CEO-only oversight feature)
+  if (typeof _renderCeoTeamActivity === 'function') _renderCeoTeamActivity();
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   CEO TEAM ACTIVITY — oversight feature
+   Lets CEO see every staff member's tasks/projects/meetings/attendance.
+   Privacy boundaries: shows ONLY work output, NEVER DMs, personal notes,
+   or personal AI Coach history. Same boundary a real workplace observes.
+   ══════════════════════════════════════════════════════════════════════ */
+
+let _ceoTeamSort = 'tasks'; // 'tasks' | 'overdue' | 'completed' | 'name'
+
+function _renderCeoTeamActivity() {
+  const wrap = document.getElementById('ceo-team-activity-wrap');
+  if (!wrap) return;
+
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+
+  // Aggregate per-staff stats (CEO + all staff)
+  const allPeople = [{ username:'ceo', name:'Dr. Owner / CEO', dept:'—', role:'CEO' }]
+    .concat(STAFF_LIST.map(s => ({ username:s.username, name:s.name, dept:s.dept||'—', role:s.role||'Staff' })));
+
+  const rows = allPeople.map(p => {
+    const tasks = (MY_TASKS[p.username] || []);
+    const todays = tasks.filter(t => t.due === todayStr || t.start === todayStr);
+    const overdue = tasks.filter(t => t.due && t.due < todayStr && t.status !== 'completed');
+    const completedToday = tasks.filter(t => {
+      if (t.status !== 'completed') return false;
+      const d = t.completedAt || t.edited || t.due || '';
+      return String(d).slice(0,10) === todayStr;
+    });
+    const total = tasks.length;
+    const ongoing = tasks.filter(t => t.status !== 'completed' && t.status !== 'cancelled').length;
+
+    // Attendance today
+    const attRec = (ATTENDANCE_DATA[p.username] || []).find(r => r.date === todayStr);
+    const checkedIn = !!(attRec && attRec.checkIn);
+    const checkedOut = !!(attRec && attRec.checkOut);
+
+    // Idle = no tasks today AND not checked in
+    const isIdle = todays.length === 0 && !checkedIn && p.username !== 'ceo';
+
+    return {
+      ...p,
+      total, ongoing,
+      todays: todays.length,
+      overdue: overdue.length,
+      completedToday: completedToday.length,
+      checkedIn, checkedOut,
+      attRec,
+      isIdle,
+    };
+  });
+
+  // Sort
+  const sortKey = _ceoTeamSort;
+  rows.sort((a,b) => {
+    if (sortKey === 'name')      return a.name.localeCompare(b.name);
+    if (sortKey === 'overdue')   return b.overdue - a.overdue;
+    if (sortKey === 'completed') return b.completedToday - a.completedToday;
+    return b.ongoing - a.ongoing; // 'tasks' (default)
+  });
+
+  wrap.innerHTML = `
+    <div style="background:white;border-radius:14px;border:1px solid #e2e8f0;padding:18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-size:14px;font-weight:900;color:#0f172a;">📊 Team Activity Today</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:2px;">Click any staff to view their work</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;font-size:11px;">
+          <span style="color:#64748b;">Sort:</span>
+          ${_ceoSortChip('tasks',     'Active tasks')}
+          ${_ceoSortChip('overdue',   'Overdue')}
+          ${_ceoSortChip('completed', 'Completed today')}
+          ${_ceoSortChip('name',      'Name')}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;max-height:420px;overflow-y:auto;">
+        ${rows.map(r => `
+          <div onclick="_openStaffActivity('${r.username}')"
+               style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:${r.isIdle ? '#fffbeb' : '#f8fafc'};border:1px solid ${r.isIdle ? '#fde68a' : '#e2e8f0'};border-radius:10px;cursor:pointer;transition:all .15s;"
+               onmouseenter="this.style.background='${r.isIdle ? '#fef3c7' : '#eff6ff'}';this.style.borderColor='#93c5fd';"
+               onmouseleave="this.style.background='${r.isIdle ? '#fffbeb' : '#f8fafc'}';this.style.borderColor='${r.isIdle ? '#fde68a' : '#e2e8f0'}';">
+            <div style="width:36px;height:36px;border-radius:50%;background:${r.checkedIn ? '#16a34a' : '#94a3b8'};color:white;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;">${(r.name||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:700;color:#0f172a;">${r.name}</div>
+              <div style="font-size:10.5px;color:#64748b;margin-top:1px;">${r.role} · ${r.dept}</div>
+            </div>
+            <div style="display:flex;gap:14px;font-size:11px;align-items:center;flex-shrink:0;">
+              ${r.isIdle ? `<span style="background:#fde68a;color:#92400e;padding:3px 9px;border-radius:8px;font-weight:700;font-size:10px;">⏸ IDLE</span>` : ''}
+              ${r.checkedIn && !r.checkedOut ? `<span style="background:#dcfce7;color:#15803d;padding:3px 9px;border-radius:8px;font-weight:700;font-size:10px;">🟢 IN</span>` : ''}
+              ${r.checkedOut ? `<span style="background:#e2e8f0;color:#475569;padding:3px 9px;border-radius:8px;font-weight:700;font-size:10px;">OUT</span>` : ''}
+              <div style="text-align:center;min-width:42px;">
+                <div style="font-weight:800;color:#1e293b;">${r.ongoing}</div>
+                <div style="font-size:9px;color:#94a3b8;">Active</div>
+              </div>
+              <div style="text-align:center;min-width:42px;">
+                <div style="font-weight:800;color:${r.overdue > 0 ? '#dc2626' : '#94a3b8'};">${r.overdue}${r.overdue > 0 ? ' 🔴' : ''}</div>
+                <div style="font-size:9px;color:#94a3b8;">Overdue</div>
+              </div>
+              <div style="text-align:center;min-width:42px;">
+                <div style="font-weight:800;color:${r.completedToday > 0 ? '#16a34a' : '#94a3b8'};">${r.completedToday}</div>
+                <div style="font-size:9px;color:#94a3b8;">Done today</div>
+              </div>
+              <span style="font-size:14px;color:#94a3b8;">→</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div style="margin-top:10px;padding:8px 12px;background:#f1f5f9;border-radius:8px;font-size:10.5px;color:#64748b;font-style:italic;">
+        🔒 Privacy: shows work output only — never DMs, personal notes, or personal AI Coach.
+      </div>
+    </div>`;
+}
+
+function _ceoSortChip(key, label) {
+  const active = _ceoTeamSort === key;
+  return `<button onclick="_ceoSetSort('${key}')" style="padding:4px 10px;background:${active ? '#0f172a' : '#fff'};color:${active ? '#fff' : '#475569'};border:1px solid ${active ? '#0f172a' : '#cbd5e1'};border-radius:6px;font-size:10.5px;font-weight:${active ? '700' : '500'};cursor:pointer;font-family:inherit;">${label}</button>`;
+}
+
+function _ceoSetSort(key) {
+  _ceoTeamSort = key;
+  _renderCeoTeamActivity();
+}
+
+/* ── Staff Activity Modal — drill-down view ──────────────────────────── */
+
+let _staffActRange = 'week'; // 'today' | 'week' | 'month' | 'all'
+let _staffActUsername = null;
+
+function _openStaffActivity(username) {
+  _staffActUsername = username;
+  _staffActRange = 'week';
+  _renderStaffActivityModal();
+}
+
+function _closeStaffActivity() {
+  document.getElementById('staff-activity-modal')?.remove();
+  _staffActUsername = null;
+}
+
+function _renderStaffActivityModal() {
+  const username = _staffActUsername;
+  if (!username) return;
+
+  // Resolve staff record
+  let staff;
+  if (username === 'ceo') {
+    staff = { username:'ceo', name:'Dr. Owner / CEO', dept:'—', role:'CEO' };
+  } else {
+    const s = STAFF_LIST.find(x => x.username === username);
+    if (!s) return;
+    staff = { username:s.username, name:s.name, dept:s.dept||'—', role:s.role||'Staff' };
+  }
+
+  // Date range
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  const range = _staffActRange;
+  let startDate;
+  if      (range === 'today')  startDate = todayStr;
+  else if (range === 'week')   { const d = new Date(today); d.setDate(d.getDate()-6); startDate = d.toISOString().split('T')[0]; }
+  else if (range === 'month')  { const d = new Date(today); d.setDate(d.getDate()-29); startDate = d.toISOString().split('T')[0]; }
+  else                          startDate = '0000-01-01'; // 'all'
+
+  const inRange = (dateStr) => {
+    if (!dateStr) return false;
+    const ds = String(dateStr).slice(0,10);
+    return ds >= startDate && ds <= todayStr;
+  };
+
+  // Tasks for this staff
+  const allTasks = (MY_TASKS[username] || []).slice();
+  const tasksInRange = allTasks.filter(t => {
+    if (range === 'all') return true;
+    return inRange(t.due) || inRange(t.start) || inRange(t.completedAt);
+  });
+  const tasksCompleted = tasksInRange.filter(t => t.status === 'completed');
+  const tasksOpen = tasksInRange.filter(t => t.status !== 'completed' && t.status !== 'cancelled');
+  const tasksOverdue = tasksOpen.filter(t => t.due && t.due < todayStr);
+
+  // Projects this staff is member of (or owner)
+  const myProjects = (PROJECTS_DATA||[]).filter(p => {
+    if (p.owner === username || p.lead === username) return true;
+    if (Array.isArray(p.members) && p.members.includes(username)) return true;
+    if (Array.isArray(p.team) && p.team.some(m => (m.username||m) === username)) return true;
+    return false;
+  });
+
+  // Meetings (attended or scheduled in range)
+  const myMeetings = (MEETINGS_DATA||[]).filter(m => {
+    const ranges = inRange(m.date);
+    const isParticipant = (m.participantUsernames||[]).includes(username) ||
+                          (m.chair === staff.name) ||
+                          (Array.isArray(m.participants) && m.participants.includes(staff.name));
+    return ranges && isParticipant;
+  });
+
+  // Notes — Dept/Company visibility ONLY (privacy)
+  const allNotesByUser = (typeof NOTES_DATA !== 'undefined' && NOTES_DATA[username]) ? NOTES_DATA[username]
+                       : (typeof MY_NOTES !== 'undefined' && MY_NOTES[username]) ? MY_NOTES[username]
+                       : [];
+  const visibleNotes = allNotesByUser.filter(n => {
+    const vis = (n.visibility || n.scope || 'personal').toLowerCase();
+    if (vis === 'personal' || vis === 'me' || vis === 'private') return false; // privacy boundary
+    if (range !== 'all' && !inRange(n.created) && !inRange(n.edited)) return false;
+    return true;
+  });
+
+  // Attendance log
+  const attLog = (ATTENDANCE_DATA[username] || []).filter(r => {
+    if (range === 'all') return true;
+    return inRange(r.date);
+  }).sort((a,b) => (b.date||'').localeCompare(a.date||''));
+
+  // Today's timeline (chronological events) — only when range = today
+  const showTimeline = (range === 'today');
+  const timelineEvents = showTimeline ? _buildDayTimeline(username, todayStr) : [];
+
+  // Kill old modal
+  document.getElementById('staff-activity-modal')?.remove();
+
+  const initials = staff.name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+
+  const modal = document.createElement('div');
+  modal.id = 'staff-activity-modal';
+  modal.className = 'modal-overlay open';
+  modal.style.cssText = 'z-index:9000;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,0.65);';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;width:90%;max-width:880px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 80px rgba(0,0,0,0.4);">
+
+      <!-- Header -->
+      <div style="padding:18px 24px;background:linear-gradient(135deg,#0f172a,#1e3a5f);color:white;display:flex;align-items:center;gap:14px;flex-shrink:0;">
+        <div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;">${initials}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:18px;font-weight:900;">${staff.name}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;">${staff.role} · ${staff.dept}</div>
+        </div>
+        <button onclick="_closeStaffActivity()" style="background:rgba(255,255,255,0.15);border:none;color:white;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;">×</button>
+      </div>
+
+      <!-- Range filter -->
+      <div style="padding:12px 24px;border-bottom:1px solid #e2e8f0;background:#f8fafc;display:flex;gap:6px;flex-shrink:0;">
+        ${_staffActRangeChip('today', 'Today')}
+        ${_staffActRangeChip('week',  'Last 7 days')}
+        ${_staffActRangeChip('month', 'Last 30 days')}
+        ${_staffActRangeChip('all',   'All time')}
+      </div>
+
+      <!-- Body (scrollable) -->
+      <div style="padding:20px 24px;overflow-y:auto;flex:1;">
+
+        ${showTimeline && timelineEvents.length > 0 ? `
+          <!-- Today's Timeline -->
+          <div style="margin-bottom:24px;">
+            <div style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">🕐 Today's Timeline</div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;">
+              <div style="display:flex;flex-direction:column;gap:8px;font-family:'JetBrains Mono',monospace;font-size:11.5px;">
+                ${timelineEvents.map(ev => `
+                  <div style="display:flex;gap:12px;align-items:flex-start;">
+                    <span style="color:#94a3b8;flex-shrink:0;width:64px;">${ev.time}</span>
+                    <span style="flex-shrink:0;">${ev.icon}</span>
+                    <span style="color:#334155;">${ev.label}</span>
+                  </div>
+                `).join('')}
+              </div>
+              ${(() => {
+                const att = attLog.find(r => r.date === todayStr);
+                if (att && att.checkIn && att.checkOut) {
+                  const [h1,m1] = att.checkIn.split(':').map(Number);
+                  const [h2,m2] = att.checkOut.split(':').map(Number);
+                  const mins = (h2*60+m2) - (h1*60+m1);
+                  const hh = Math.floor(mins/60), mm = mins%60;
+                  return `<div style="margin-top:10px;padding-top:10px;border-top:1px dashed #cbd5e1;font-size:11px;color:#64748b;">⏱ Active period: <strong>${hh}h ${mm}m</strong></div>`;
+                }
+                return '';
+              })()}
+            </div>
+          </div>` : (showTimeline ? `<div style="margin-bottom:20px;padding:14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:12px;color:#92400e;">⏸ No activity recorded today</div>` : '')}
+
+        <!-- Summary stats -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;">
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;text-align:center;">
+            <div style="font-size:20px;font-weight:900;color:#1e293b;">${tasksOpen.length}</div>
+            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Active tasks</div>
+          </div>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;text-align:center;">
+            <div style="font-size:20px;font-weight:900;color:${tasksOverdue.length > 0 ? '#dc2626' : '#94a3b8'};">${tasksOverdue.length}</div>
+            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Overdue</div>
+          </div>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;text-align:center;">
+            <div style="font-size:20px;font-weight:900;color:#16a34a;">${tasksCompleted.length}</div>
+            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Completed</div>
+          </div>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;text-align:center;">
+            <div style="font-size:20px;font-weight:900;color:#1e293b;">${myMeetings.length}</div>
+            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Meetings</div>
+          </div>
+        </div>
+
+        <!-- Tasks -->
+        <div style="margin-bottom:20px;">
+          <div style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">📋 Tasks (${tasksInRange.length})</div>
+          ${tasksInRange.length === 0 ? `<div style="padding:12px;text-align:center;color:#94a3b8;font-size:12px;background:#f8fafc;border-radius:8px;">No tasks in this range</div>` :
+            `<div style="display:flex;flex-direction:column;gap:6px;">
+              ${tasksInRange.slice(0, 20).map(t => {
+                const isDone = t.status === 'completed';
+                const isOverdue = t.due && t.due < todayStr && !isDone;
+                return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:${isDone ? '#f0fdf4' : isOverdue ? '#fef2f2' : '#f8fafc'};border:1px solid ${isDone ? '#86efac' : isOverdue ? '#fca5a5' : '#e2e8f0'};border-radius:8px;font-size:12px;">
+                  <span style="font-size:14px;">${isDone ? '✅' : isOverdue ? '🔴' : '▢'}</span>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-weight:600;color:#1e293b;${isDone ? 'text-decoration:line-through;color:#94a3b8;' : ''}">${t.name || t.title || 'Untitled'}</div>
+                    ${t.due ? `<div style="font-size:10px;color:${isOverdue ? '#dc2626' : '#94a3b8'};margin-top:1px;">Due ${t.due}${isOverdue ? ' · OVERDUE' : ''}</div>` : ''}
+                  </div>
+                  ${t.urgency === 'urgent' ? `<span style="font-size:9px;background:#fee2e2;color:#991b1b;padding:2px 6px;border-radius:4px;font-weight:700;">URGENT</span>` : ''}
+                </div>`;
+              }).join('')}
+              ${tasksInRange.length > 20 ? `<div style="font-size:10px;color:#94a3b8;text-align:center;padding:6px;font-style:italic;">…and ${tasksInRange.length - 20} more</div>` : ''}
+            </div>`}
+        </div>
+
+        <!-- Projects -->
+        <div style="margin-bottom:20px;">
+          <div style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">📊 Projects (${myProjects.length})</div>
+          ${myProjects.length === 0 ? `<div style="padding:12px;text-align:center;color:#94a3b8;font-size:12px;background:#f8fafc;border-radius:8px;">Not a member of any active projects</div>` :
+            `<div style="display:flex;flex-direction:column;gap:6px;">
+              ${myProjects.slice(0, 10).map(p => {
+                const status = p.status || 'ongoing';
+                const progress = typeof p.progress === 'number' ? p.progress : (p.completion || 0);
+                return `<div style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                    <div style="font-weight:600;color:#1e293b;flex:1;min-width:0;">${p.name || p.title || 'Untitled project'}</div>
+                    <span style="font-size:10px;background:#e2e8f0;color:#475569;padding:2px 8px;border-radius:6px;font-weight:600;">${status}</span>
+                  </div>
+                  ${progress > 0 ? `<div style="margin-top:6px;background:#e2e8f0;border-radius:4px;height:5px;overflow:hidden;">
+                    <div style="background:#16a34a;height:100%;width:${progress}%;"></div>
+                  </div>
+                  <div style="font-size:10px;color:#94a3b8;text-align:right;margin-top:2px;">${progress}% complete</div>` : ''}
+                </div>`;
+              }).join('')}
+            </div>`}
+        </div>
+
+        <!-- Meetings -->
+        <div style="margin-bottom:20px;">
+          <div style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">📅 Meetings (${myMeetings.length})</div>
+          ${myMeetings.length === 0 ? `<div style="padding:12px;text-align:center;color:#94a3b8;font-size:12px;background:#f8fafc;border-radius:8px;">No meetings in this range</div>` :
+            `<div style="display:flex;flex-direction:column;gap:6px;">
+              ${myMeetings.slice(0, 10).map(m => `
+                <div style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                    <div style="font-weight:600;color:#1e293b;flex:1;min-width:0;">${m.title || 'Untitled meeting'}</div>
+                    <span style="font-size:10px;color:#94a3b8;">${m.date} · ${_to12hr(m.time||'')||''}</span>
+                  </div>
+                  ${m.chair === staff.name ? `<span style="font-size:9px;background:#dbeafe;color:#1e40af;padding:2px 6px;border-radius:4px;font-weight:700;display:inline-block;margin-top:4px;">CHAIR</span>` : ''}
+                </div>`).join('')}
+            </div>`}
+        </div>
+
+        <!-- Notes (Dept/Company visibility ONLY) -->
+        <div style="margin-bottom:20px;">
+          <div style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">📝 Notes — Dept/Company visibility (${visibleNotes.length})</div>
+          ${visibleNotes.length === 0 ? `<div style="padding:12px;text-align:center;color:#94a3b8;font-size:12px;background:#f8fafc;border-radius:8px;">No shared notes in this range</div>` :
+            `<div style="display:flex;flex-direction:column;gap:6px;">
+              ${visibleNotes.slice(0, 10).map(n => `
+                <div style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;">
+                  <div style="font-weight:600;color:#1e293b;">${n.title || 'Untitled'}</div>
+                  <div style="font-size:10px;color:#94a3b8;margin-top:2px;">${n.created || n.edited || ''} · ${n.cat || n.category || 'General'}</div>
+                </div>`).join('')}
+            </div>`}
+          <div style="margin-top:6px;font-size:10px;color:#94a3b8;font-style:italic;">🔒 Personal-visibility notes are not shown — privacy respected.</div>
+        </div>
+
+        <!-- Attendance Log -->
+        <div style="margin-bottom:8px;">
+          <div style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">🕐 Attendance log (${attLog.length})</div>
+          ${attLog.length === 0 ? `<div style="padding:12px;text-align:center;color:#94a3b8;font-size:12px;background:#f8fafc;border-radius:8px;">No attendance records in this range</div>` :
+            `<div style="display:flex;flex-direction:column;gap:4px;font-family:'JetBrains Mono',monospace;font-size:11px;">
+              ${attLog.slice(0, 14).map(r => `
+                <div style="padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;display:flex;justify-content:space-between;">
+                  <span style="color:#1e293b;font-weight:600;">${r.date}</span>
+                  <span style="color:#64748b;">${r.checkIn || '—'} → ${r.checkOut || '(still in)'}</span>
+                </div>`).join('')}
+            </div>`}
+        </div>
+
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+  // Click backdrop to close
+  modal.addEventListener('click', (e) => { if (e.target === modal) _closeStaffActivity(); });
+}
+
+function _staffActRangeChip(key, label) {
+  const active = _staffActRange === key;
+  return `<button onclick="_setStaffActRange('${key}')" style="padding:6px 14px;background:${active ? '#0f172a' : '#fff'};color:${active ? '#fff' : '#475569'};border:1px solid ${active ? '#0f172a' : '#cbd5e1'};border-radius:6px;font-size:11.5px;font-weight:${active ? '700' : '500'};cursor:pointer;font-family:inherit;">${label}</button>`;
+}
+
+function _setStaffActRange(key) {
+  _staffActRange = key;
+  _renderStaffActivityModal();
+}
+
+function _buildDayTimeline(username, dateStr) {
+  const events = [];
+
+  // Attendance
+  const att = (ATTENDANCE_DATA[username] || []).find(r => r.date === dateStr);
+  if (att) {
+    if (att.checkIn) events.push({ time: att.checkIn, icon: '✅', label: 'Checked in', _ts: att.checkIn });
+    if (att.checkOut) events.push({ time: att.checkOut, icon: '🚪', label: 'Checked out', _ts: att.checkOut });
+  }
+
+  // Tasks (created or completed today)
+  const tasks = MY_TASKS[username] || [];
+  tasks.forEach(t => {
+    // Created
+    const createdTime = t.createdAt || t.created;
+    if (createdTime && String(createdTime).slice(0,10) === dateStr) {
+      const tt = String(createdTime).length > 10 ? new Date(createdTime).toTimeString().slice(0,5) : '—:—';
+      events.push({ time: tt, icon: '📋', label: `Created task "${t.name || t.title || ''}"`, _ts: tt });
+    }
+    // Completed
+    if (t.status === 'completed') {
+      const completedTime = t.completedAt || t.edited;
+      if (completedTime && String(completedTime).slice(0,10) === dateStr) {
+        const tt = String(completedTime).length > 10 ? new Date(completedTime).toTimeString().slice(0,5) : '—:—';
+        events.push({ time: tt, icon: '✅', label: `Completed task "${t.name || t.title || ''}"`, _ts: tt });
+      }
+    }
+  });
+
+  // Meetings
+  const meetings = (MEETINGS_DATA||[]).filter(m => {
+    const isParticipant = (m.participantUsernames||[]).includes(username);
+    return m.date === dateStr && isParticipant;
+  });
+  meetings.forEach(m => {
+    if (m.time) {
+      events.push({ time: _shortenTime(m.time), icon: '📅', label: `Meeting: ${m.title}`, _ts: m.time });
+    }
+  });
+
+  // Sort by time
+  events.sort((a,b) => (a._ts || '').localeCompare(b._ts || ''));
+
+  return events;
+}
+
+function _shortenTime(t) {
+  if (!t) return '—:—';
+  const s = String(t).trim();
+  // If "02:00 PM" → return as is
+  if (/[ap]m/i.test(s)) return s;
+  // If "14:30" → 24-hour, return
+  return s;
+}
+
 
 function _ceoBuildClinicCard() {
   const queue    = _cmsQueue();
@@ -10669,7 +11144,8 @@ function submitLeave() {
 const CAL_DATA = {};
 
 
-let calYear = 2026, calMonth = 2;
+// Calendar starts on the current month (was hardcoded to March 2026 — caused wrong-month display)
+let calYear = new Date().getFullYear(), calMonth = new Date().getMonth();
 
 let calFilterTypes = { meeting: true, event: true, holiday: true };
 
@@ -13285,6 +13761,7 @@ function executeUSlashCommand(cmd) {
     };
     if (!MY_TASKS[pic]) MY_TASKS[pic] = [];
     MY_TASKS[pic].push(newTask);
+    if (typeof _saveMyTasks === 'function') _saveMyTasks();
     pushNotif({ type:'task_assigned', forUser:pic, title:`📋 Task from ${me}`, body:`${name} · Due ${formatDateShort(due)}` });
     injectChip(`[📋 Task created → ${picPerson?.name||pic}: "${name}" · Due ${formatDateShort(due)}]`);
     closeUSlashModal();
@@ -13637,6 +14114,7 @@ function executeSlashCommand(cmd) {
     };
     if (!MY_TASKS[pic]) MY_TASKS[pic] = [];
     MY_TASKS[pic].push(newTask);
+    if (typeof _saveMyTasks === 'function') _saveMyTasks();
 
     // Notify assignee
     pushNotif({ type:'task_assigned', forUser:pic,
@@ -14461,6 +14939,7 @@ function executeAiAction(msgId, actionIdx) {
       project:null, projectId:null, urgency:p.urgency||'Medium', importance:'Important',
       status:'To Do', due:p.due||today, start:p.due||today, est:'1h', notes:p.notes||'', links:[],
       assignedBy:me, slashCreated:true, slashOrigin:'ai_bot' });
+    if (typeof _saveMyTasks === 'function') _saveMyTasks();
     pushNotif({type:'task_assigned',forUser:pic,title:`📋 Task from AI Bot`,body:`${p.name} · Due ${p.due||today}`});
     if(document.querySelector('#page-tasks.active')) renderTaskPage();
     showToast(`✅ Task "${p.name}" created for ${allPeople.find(x=>x.username===pic)?.name||pic}!`,'success');
@@ -14474,6 +14953,7 @@ function executeAiAction(msgId, actionIdx) {
       participants:participantNames, participantUsernames:participants,
       location:p.location||'TBD', category:'General', status:'upcoming',
       objectives:'Scheduled by Medifirst AI', agenda:['Opening','Discussion','Closing'], minutes:'', links:[] });
+    if (typeof saveMeetings === 'function') saveMeetings();
     participants.filter(u=>u!==me).forEach(u=>pushNotif({type:'meeting_invite',forUser:u,title:`📅 ${p.title}`,body:`${p.date} at ${p.time||'9AM'}`}));
     if(document.querySelector('#page-meetings.active')) renderMeetingsPage();
     showToast(`📅 Meeting "${p.title}" scheduled!`,'success');
@@ -14482,6 +14962,8 @@ function executeAiAction(msgId, actionIdx) {
     if(!MY_NOTES[me]) MY_NOTES[me]=[];
     MY_NOTES[me].unshift({ id:'note_ai_'+Date.now(), title:p.title||'New Note', content:p.content||'', cat:'AI Notes',
       created:today, edited:today, pinned:false, sourceOrigin:'ai_bot', links:[] });
+    if (typeof saveNotes === 'function') saveNotes();
+    else if (typeof _saveMyNotes === 'function') _saveMyNotes();
     if(document.querySelector('#page-notes.active')) renderNotesPage();
     showToast(`📝 Note "${p.title}" saved!`,'success');
   }
@@ -17017,6 +17499,7 @@ function annQcConfirm(type) {
         });
       }
     });
+    if (typeof _saveMyTasks === 'function') _saveMyTasks();
     if (typeof renderTaskPage === 'function') { try { renderTaskPage(); } catch(e){ console.error('[MIMS]', e); } }
 
     cardHtml = `[✅ TASK: ${name}${dueStr?' · Due '+dueStr:''}${staff.isAll?'':' · Assigned to: '+staff.label}]`;
@@ -17937,8 +18420,8 @@ function renderStaffMgmt() {
         </div>
       </div>`;
   }
-  if (trackerCardCeo) {
-    trackerCardCeo.innerHTML = `
+  if (trackerCard) {
+    trackerCard.innerHTML = `
       <div class="card-header">
         <div class="card-title">⏱ Time Tracker Settings (CEO)</div>
         <div style="font-size:12px;color:var(--grey-400);">CEO-only setting -- your account only</div>
@@ -19113,7 +19596,8 @@ function saveProjects() {
 let projectNextId = 200;
 
 // Leave calendar state
-let leaveCalYear = 2026, leaveCalMonth = 2; // 0-indexed month (2 = March)
+// Initialize to current month (was hardcoded to March 2026)
+let leaveCalYear = new Date().getFullYear(), leaveCalMonth = new Date().getMonth();
 let leaveAttachments = [];
 
 const LEAVE_TYPE_META = {
@@ -21567,7 +22051,7 @@ function addTaskLinkFromDetail(taskId) {
   if (existing) existing.remove();
   const m = document.createElement('div');
   m.id = 'task-link-modal';
-  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:5000;display:flex;align-items:center;justify-content:center;';
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10010;display:flex;align-items:center;justify-content:center;';
   m.innerHTML = `<div style="background:white;border-radius:14px;padding:20px 24px;width:min(400px,90vw);box-shadow:0 8px 32px rgba(0,0,0,0.2);">
     <div style="font-size:14px;font-weight:800;margin-bottom:14px;">🔗 Add Link or File Reference</div>
     <input id="task-link-input" class="form-input" placeholder="Paste URL or Google Drive link..." style="width:100%;font-size:13px;margin-bottom:12px;box-sizing:border-box;"/>
@@ -23153,6 +23637,7 @@ function submitNoteToDb() {
     links: [{ title:'View Document', url:'#database' }],
     start: today
   });
+  if (typeof _saveMyTasks === 'function') _saveMyTasks();
 
   // Also save note with Database category for the submitter
   if (!NOTES_DATA[me]) NOTES_DATA[me] = [];
@@ -34726,10 +35211,23 @@ function applyTaskStatusUpdate(taskId, newStatus, logEntry) {
 // -- WORK LOG SYSTEM -----------------------------------------------------------
 function _to12hr(hhmm) {
   if (!hhmm) return '?';
-  const [h,m] = hhmm.split(':').map(Number);
+  // If already in 12-hour form (contains AM/PM), normalize and return
+  const trimmed = String(hhmm).trim();
+  const ampmMatch = trimmed.match(/^(\d{1,2}):(\d{1,2})\s*(am|pm|AM|PM)$/i);
+  if (ampmMatch) {
+    const h = parseInt(ampmMatch[1], 10);
+    const m = parseInt(ampmMatch[2], 10) || 0;
+    const ampm = ampmMatch[3].toLowerCase();
+    return (h % 12 || 12) + ':' + String(m).padStart(2, '0') + ' ' + ampm;
+  }
+  // Otherwise, treat as 24-hour "HH:MM"
+  const parts = trimmed.split(':');
+  const h = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  if (isNaN(h)) return '?';
   const ampm = h >= 12 ? 'pm' : 'am';
   const h12 = h % 12 || 12;
-  return h12 + ':' + String(m).padStart(2,'0') + ' ' + ampm;
+  return h12 + ':' + String(isNaN(m) ? 0 : m).padStart(2, '0') + ' ' + ampm;
 }
 
 function renderWorkLogEntries(t) {
@@ -40472,6 +40970,10 @@ function saveMeetingWorkspace(id) {
         body:`${taskName}${iss.due?' · Due '+formatDateShort(iss.due):''}` });
     }
   });
+
+  // Persist task and meeting changes — without these, tasks created here vanish on refresh
+  if (typeof _saveMyTasks === 'function') _saveMyTasks();
+  if (typeof saveMeetings === 'function') saveMeetings();
 
   m.status = 'completed';
   _wsActiveMeetingId = null;
