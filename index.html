@@ -1632,6 +1632,13 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#e0f2fe;color:var(--g
 #wf-props input[type=number]::-webkit-inner-spin-button { opacity: 0.5; filter: invert(1); }
 </style>
 <script>
+// ── MIMS BUILD INFO ──────────────────────────────────────────────────────────
+// Update these on every delivery. They render on login page for deployment verification.
+// Format: semantic version WITHOUT 'v' prefix — renderers add 'v' when displaying.
+const MIMS_VERSION = '2.1.0';
+const MIMS_BUILD_DATE = '2026-05-21';
+const MIMS_BUILD_LABEL = 'MVP polish sprint · 11 bugs fixed · CEO oversight';
+
 // Login functions defined early so onclick handlers always work
 var USERS_EARLY = {
   'ceo': { name:'CEO / Dr. Owner', role:'Chief Executive Officer', type:'ceo', tier:'admin', avatar:'C', color:'#F7C948', textColor:'#7a5700' }
@@ -1854,6 +1861,8 @@ async function _claudeFetch(body) {
       <div style="font-size:11px;color:var(--grey-400);">Sign in with your registered credentials</div>
       <!-- Quick Login — Testing Phase -->
       <div id="quick-login-strip" style="margin-top:12px;"></div>
+      <!-- Build version + today's date (for deployment verification) -->
+      <div id="build-info-strip" style="margin-top:16px;padding-top:12px;border-top:1px dashed var(--grey-100);font-size:10px;color:var(--grey-400);line-height:1.6;font-family:'Inter',system-ui,sans-serif;"></div>
     </div>
   </div>
 </div>
@@ -4594,6 +4603,27 @@ function fillLogin(u, p) {
 document.getElementById('login-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 // Render quick login buttons for testing phase
 setTimeout(renderQuickLogin, 200);
+setTimeout(renderBuildInfo, 200);
+
+// ── Build info on login page (deployment verification) ────────────────────────
+function renderBuildInfo() {
+  const strip = document.getElementById('build-info-strip');
+  if (!strip) return;
+  const today = new Date();
+  const todayStr = today.toLocaleDateString('en-MY', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+  });
+  strip.innerHTML = `
+    <div style="font-weight:600;color:var(--grey-500);letter-spacing:0.02em;">
+      v${MIMS_VERSION} · built ${MIMS_BUILD_DATE}
+    </div>
+    <div style="font-size:9.5px;color:var(--grey-400);margin-top:2px;font-style:italic;">
+      ${MIMS_BUILD_LABEL}
+    </div>
+    <div style="font-size:9.5px;color:var(--grey-400);margin-top:4px;">
+      Today: ${todayStr}
+    </div>`;
+}
 
 function updateSidebarUser() {
   if (!currentUser) return;
@@ -28451,14 +28481,35 @@ function renderMarketingModule() {
 // ============================================================
 
 // ── WHAT'S NEW PAGE ──────────────────────────────────────────────────────────
-const MIMS_VERSION = '2.0.0';
-const MIMS_BUILD_DATE = 'March 2026';
+// MIMS_VERSION and MIMS_BUILD_DATE are declared at the top of the file (login info).
+// This page reads from them for the changelog header.
 
 const MIMS_CHANGELOG = [
   {
+    version: '2.1.0',
+    date: 'May 2026',
+    tag: 'latest',
+    title: 'MVP Polish Sprint — Bug Fixes &amp; CEO Oversight',
+    summary: 'A focused 5-session sprint to make MIMS solo-test-ready. Cross-user task assignment now persists. Calendars show correct dates. Meeting times no longer display NaN. CEO can now monitor staff activity from the dashboard.',
+    changes: [
+      { type: 'new', text: 'CEO Team Activity card on CEO Dashboard — sortable list of every staff with active tasks, overdue count, and check-in status' },
+      { type: 'new', text: 'Staff Activity drill-down modal — click any staff to see their tasks, projects, meetings, attendance, and today\'s timeline. Privacy-respecting (no DMs, no personal notes)' },
+      { type: 'new', text: 'Build version + date now display on login page for deployment verification' },
+      { type: 'new', text: 'Delete button added to note view modal — finally wired to existing deleteNote() function' },
+      { type: 'fixed', text: 'Cross-user task assignment now persists across refresh — 10 task creation sites were missing _saveMyTasks() calls (AI Bot, slash commands, meeting actions, announcement Q&amp;A, workflow engine, database approval)' },
+      { type: 'fixed', text: 'Meeting times no longer display "NaN am" — formatter now handles both 12-hour (02:00 PM) and 24-hour (14:00) input formats' },
+      { type: 'fixed', text: 'Calendars on General Dashboard and Leave Calendar were hardcoded to March 2026 — now initialize from current date' },
+      { type: 'fixed', text: 'Calendar "today" highlight strengthened — was using too-pale blue making it invisible on General Dashboard' },
+      { type: 'fixed', text: 'Reports To dropdown in Add Staff form was rendering literal "${s.name}" — now populates dynamically with all current staff' },
+      { type: 'fixed', text: 'trackerCardCeo ReferenceError on CEO Dashboard — variable name typo corrected' },
+      { type: 'fixed', text: 'Add Link popup in task detail no longer hidden behind parent modal — z-index raised above task detail\'s dynamic 10002' },
+      { type: 'improved', text: 'New Meeting modal tightened spacing — less vertical scrolling required' },
+    ],
+  },
+  {
     version: '2.0.0',
     date: 'March 2026',
-    tag: 'latest',
+    tag: 'major',
     title: 'AI Business Intelligence Layer',
     summary: 'MIMS gets a brain. CEO Dashboard now has an AI Business Advisor, Finance AI CFO Advisor, and an AI Project Builder that brainstorms, structures, and creates full projects with OKRs, tasks, meetings and notifications in one flow.',
     changes: [
